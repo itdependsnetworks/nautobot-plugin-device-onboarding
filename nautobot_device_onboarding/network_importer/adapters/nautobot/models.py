@@ -11,11 +11,11 @@ from nautobot_device_onboarding.network_importer.adapters.nautobot.exceptions im
 from nautobot_device_onboarding.network_importer.models import (  # pylint: disable=import-error
     Site,
     Device,
-    # Interface,
+    Interface,
     # IPAddress,
     # Cable,
-    # Prefix,
-    # Vlan,
+    Prefix,
+    Vlan,
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -54,11 +54,11 @@ class NautobotDevice(Device):
 #         return self.device_tag_id
 
 
-# class NautobotInterface(Interface):
-#     """Extension of the Interface model."""
+class NautobotInterface(Interface):
+    """Extension of the Interface model."""
 
-#     remote_id: Optional[str]
-#     connected_endpoint_type: Optional[str]
+    remote_id: Optional[str]
+    connected_endpoint_type: Optional[str]
 
 #     def translate_attrs_for_nautobot(self, attrs):  # pylint: disable=too-many-branches
 #         """Translate interface attributes into Nautobot format.
@@ -377,10 +377,10 @@ class NautobotDevice(Device):
 #         return self
 
 
-# class NautobotPrefix(Prefix):
-#     """Extension of the Prefix model."""
+class NautobotPrefix(Prefix):
+    """Extension of the Prefix model."""
 
-#     remote_id: Optional[str]
+    remote_id: Optional[str]
 
 #     def translate_attrs_for_nautobot(self, attrs):
 #         """Translate prefix attributes into Nautobot format.
@@ -457,11 +457,11 @@ class NautobotDevice(Device):
 #         return super().update(attrs)
 
 
-# class NautobotVlan(Vlan):
-#     """Extension of the Vlan model."""
+class NautobotVlan(Vlan):
+    """Extension of the Vlan model."""
 
-#     remote_id: Optional[str]
-#     tag_prefix: str = "device="
+    remote_id: Optional[str]
+    tag_prefix: str = "device="
 
 #     def translate_attrs_for_nautobot(self, attrs):
 #         """Translate vlan attributes into Nautobot format.
