@@ -1,20 +1,20 @@
 """Custom Exceptions for the NetworkImporterAdapter."""
-import re
 import ipaddress
-import json
 import logging
 from collections import defaultdict
 from ipaddress import ip_interface
+from dataclasses import dataclass
 
 from django.conf import settings
+
 
 from diffsync.exceptions import ObjectNotFound, ObjectAlreadyExists
 
 # pylint: disable=import-error
-# import network_importer.config as config   TODO: BRING IN CONFIGURATION FROM PLUGIN
+from django.conf import settings
+
 from network_importer.adapters.base import BaseAdapter
 
-from nautobot_device_onboarding.network_importer.exceptions import AdapterLoadFatalError
 from nautobot_device_onboarding.network_importer.inventory import reachable_devs, valid_and_reachable_devs
 from nautobot_device_onboarding.network_importer.tasks import check_if_reachable, warning_not_reachable
 from nautobot_device_onboarding.network_importer.drivers import dispatcher
@@ -80,6 +80,9 @@ class NetworkImporterAdapter(BaseAdapter):
         self.load_cabling()
         ip_addresses = self.get_ipaddresses_from_napalm()
         # Loop over each of the ip addresses (which should be in a dictionary)
+        # TODO: Build out interfaces that need to be made
+        # TODO: Build out Prefixes
+        # TODO: Build out IP addresses
 
         self.check_data_consistency()
 

@@ -5,9 +5,10 @@ import importlib
 # from nornir.core.exceptions import NornirSubTaskError
 from nornir.core.task import Result, Task
 
-# import network_importer.config as config  ## TODO: Adding configuration settings
+from django.conf import settings
 
 LOGGER = logging.getLogger("network-importer")
+PLUGIN_SETTINGS = settings.PLUGINS_CONFIG.get("nautobot_device_onboarding", {})
 
 
 def dispatcher(task: Task, method: str) -> Result:
@@ -22,7 +23,11 @@ def dispatcher(task: Task, method: str) -> Result:
     LOGGER.debug("Executing dispatcher for %s (%s)", task.host.name, task.host.platform)
 
     # Get the platform specific driver, if not available, get the default driver
-    driver = config.SETTINGS.drivers.mapping.get(task.host.platform, config.SETTINGS.drivers.mapping.get("default"))
+    driver = (
+        PLUGIN_SETTINGS.get("drivers", {})
+        .get("mapping", {})
+        .get(task.host.platform, PLUGIN_SETTINGS.get("drivers", {}).get("mapping", {}).get("default"))
+    )
     LOGGER.debug("Found driver %s", driver)
 
     if not driver:

@@ -14,66 +14,12 @@ limitations under the License.
 """
 
 import logging
-import os
 import socket
 from typing import Optional, List
 
-import yaml
 from nornir.core.task import Result, Task
 
-# import network_importer.config as config  ## TODO: Config
-
 LOGGER = logging.getLogger("network-importer")  # pylint: disable=C0103
-
-
-def device_save_hostvars(task: Task) -> Result:
-    """Save the device hostvars into a yaml file.
-
-    Args:
-      task (Task): Nornir Task
-
-    Returns:
-      Result: Nornir Result
-    """
-    if not task.host.data["obj"].hostvars:
-        return Result(host=task.host)
-
-    # Save device hostvars in file
-    if not os.path.exists(f"{config.SETTINGS.main.hostvars_directory}/{task.host.name}"):
-        os.makedirs(f"{config.SETTINGS.main.hostvars_directory}/{task.host.name}")
-        LOGGER.debug("Directory %s/%s was missing, created it", config.SETTINGS.main.hostvars_directory, task.host.name)
-
-    with open(
-        f"{config.SETTINGS.main.hostvars_directory}/{task.host.name}/network_importer.yaml",
-        "w",
-    ) as out_file:
-        out_file.write(yaml.dump(task.host.data["obj"].hostvars, default_flow_style=False))
-        LOGGER.debug(
-            "%s - Host variables saved in %s/%s/network_importer.yaml",
-            task.host.name,
-            config.SETTINGS.main.hostvars_directory,
-            task.host.name,
-        )
-
-    return Result(host=task.host)
-
-    # -------------------------------------------------------------------
-    # Old code that need used previously to generate the hostvars from a jinja templates
-    # -------------------------------------------------------------------
-    # module_path = os.path.dirname(network_importer.__file__)
-    # template_dir = f"{module_path}/templates/"
-
-    # dev_facts = task.host.data["obj"].bf.extract_facts(nodes=task.host.name)["nodes"][task.host.name]
-    # del dev_facts["Interfaces"]
-
-    # # Load Jinja2 template
-    # # env = Environment(
-    # #     loader=FileSystemLoader(template_dir), trim_blocks=True, lstrip_blocks=True
-    # # )
-    # # env.filters["to_yaml_list"] = jinja_filter_toyaml_list
-    # # env.filters["to_yaml_dict"] = jinja_filter_toyaml_dict
-    # # template = env.get_template("hostvars.j2")
-    # # hostvars_str = template.render(dev_facts)
 
 
 def tcp_ping(task: Task, ports: List[int], timeout: int = 2, host: Optional[str] = None) -> Result:

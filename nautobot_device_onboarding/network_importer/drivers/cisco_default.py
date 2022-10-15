@@ -23,15 +23,18 @@ from netmiko.ssh_exception import (
     NetmikoTimeoutException,
 )
 
-import network_importer.config as config
+from django.conf import settings
+
 from network_importer.drivers.default import NetworkImporterDriver as DefaultNetworkImporterDriver
 from network_importer.drivers.converters import (
     convert_cisco_genie_lldp_neighbors_details,
     convert_cisco_genie_cdp_neighbors_details,
     convert_cisco_genie_vlans,
 )
+from nautobot_device_onboarding.network_importer.exceptions import DriverLoadFatalError
 
 LOGGER = logging.getLogger("network-importer")
+PLUGIN_SETTINGS = settings.PLUGINS_CONFIG.get("nautobot_device_onboarding", {})
 
 
 class NetworkImporterDriver(DefaultNetworkImporterDriver):
@@ -88,11 +91,16 @@ class NetworkImporterDriver(DefaultNetworkImporterDriver):
         """
         LOGGER.debug("Executing get_neighbor for %s (%s)", task.host.name, task.host.platform)
 
-        if config.SETTINGS.main.import_cabling == "lldp":
+        import_cabling_method = PLUGIN_SETTINGS.get("main", {}).get("import_cabling")
+
+        if import_cabling_method is None:
+            raise DriverLoadFatalError
+
+        if import_cabling_method == "lldp":
             command = "show lldp neighbors detail"
             converter = convert_cisco_genie_lldp_neighbors_details
             cmd_type = "LLDP"
-        elif config.SETTINGS.main.import_cabling == "cdp":
+        elif import_cabling_method == "cdp":
             command = "show cdp neighbors detail"
             converter = convert_cisco_genie_cdp_neighbors_details
             cmd_type = "CDP"
@@ -100,9 +108,11 @@ class NetworkImporterDriver(DefaultNetworkImporterDriver):
             return Result(host=task.host, failed=True)
 
         try:
-            result = task.run(task=netmiko_send_command, command_string=command, use_genie=True)
+            result = task.run(
+                task=netmiko_send_command, command_string=command, use_genie=True
+            )  # TODO: Convert to NTC Templates
         except NornirSubTaskError:
-            LOGGER.debug("An exception occured while pulling %s data", cmd_type, exc_info=True)
+            LOGGER.debug("An exception occurred while pulling %s data", cmd_type, exc_info=True)
             return Result(host=task.host, failed=True)
 
         if result[0].failed:
@@ -128,7 +138,7 @@ class NetworkImporterDriver(DefaultNetworkImporterDriver):
             results = task.run(task=netmiko_send_command, command_string="show vlan", use_genie=True)
         except NornirSubTaskError:
             LOGGER.debug(
-                "An exception occured while pulling the vlans information",
+                "An exception occurred while pulling the vlans information",
                 exc_info=True,
             )
             return Result(host=task.host, failed=True)

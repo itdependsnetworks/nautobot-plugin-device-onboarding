@@ -20,10 +20,11 @@ from nornir_netmiko.tasks import netmiko_send_command
 from nornir.core.task import Result, Task
 from nornir.core.exceptions import NornirSubTaskError
 
-import network_importer.config as config
+from django.conf import settings
 from network_importer.drivers.converters import convert_cisco_genie_cdp_neighbors_details
 
 LOGGER = logging.getLogger("network-importer")
+PLUGIN_SETTINGS = settings.PLUGINS_CONFIG.get("nautobot_device_onboarding", {})
 
 
 class NetworkImporterDriver:
@@ -67,12 +68,11 @@ class NetworkImporterDriver:
         """
         LOGGER.debug("Executing get_neighbor for %s (%s)", task.host.name, task.host.platform)
 
-        if config.SETTINGS.main.import_cabling == "lldp":
-
+        if PLUGIN_SETTINGS.get("main", {}).get("import_cabling", "").lower() == "lldp":
             try:
                 result = task.run(task=napalm_get, getters=["lldp_neighbors"])
             except:  # noqa: E722 # pylint: disable=bare-except
-                LOGGER.debug("An exception occured while pulling lldp_data", exc_info=True)
+                LOGGER.debug("An exception occurred while pulling lldp_data", exc_info=True)
                 return Result(host=task.host, failed=True)
 
             if result[0].failed:
@@ -81,12 +81,11 @@ class NetworkImporterDriver:
             neighbors = result[0].result.get("lldp_neighbors", {})
             return Result(host=task.host, result={"neighbors": neighbors})
 
-        if config.SETTINGS.main.import_cabling == "cdp":
-
+        if PLUGIN_SETTINGS.get("main", {}).get("import_cabling", "").lower() == "cdp":
             try:
-                result = task.run(task=netmiko_send_command, command_string="show cdp neighbors detail", use_genie=True)
+                result = task.run(task=netmiko_send_command, command_string="show cdp neighbors detail", use_genie=True) # TODO convert to NTC Templates
             except NornirSubTaskError:
-                LOGGER.debug("An exception occured while pulling CDP data")
+                LOGGER.debug("An exception occurred while pulling CDP data")
                 return Result(host=task.host, failed=True)
 
             if result[0].failed:

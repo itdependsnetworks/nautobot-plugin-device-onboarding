@@ -1236,7 +1236,7 @@ python-versions = "*"
 
 [[package]]
 name = "netmiko"
-version = "4.1.1"
+version = "4.1.2"
 description = "Multi-vendor library to simplify legacy CLI connections to network devices"
 category = "main"
 optional = false
@@ -1249,7 +1249,7 @@ pyserial = "*"
 pyyaml = ">=5.3"
 scp = ">=0.13.3"
 tenacity = "*"
-textfsm = ">=1.1.2"
+textfsm = "1.1.2"
 
 [[package]]
 name = "netutils"
@@ -2099,7 +2099,7 @@ testing = ["func-timeout", "jaraco.itertools", "pytest (>=6)", "pytest-black (>=
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "cc0c63cdcb2874de5c55f37afa661eacc316a8c69db73df5628db98c363f2367"
+content-hash = "d51ce2aea907cb378146aa18f77586ae8e80e74761574555bf04e42c6ad6cf97"
 
 [metadata.files]
 amqp = [
@@ -2700,8 +2700,8 @@ netaddr = [
     {file = "netaddr-0.8.0.tar.gz", hash = "sha256:d6cc57c7a07b1d9d2e917aa8b36ae8ce61c35ba3fcd1b83ca31c5a0ee2b5a243"},
 ]
 netmiko = [
-    {file = "netmiko-4.1.1-py3-none-any.whl", hash = "sha256:a01e65fbed9cefc460e336ea9bc28da68e1f4c215d9288a94080e200133e5a41"},
-    {file = "netmiko-4.1.1.tar.gz", hash = "sha256:6529b11da166d3009aac1133a7eedb2fbaf6110c519bbb4b4f48f865d8daac9a"},
+    {file = "netmiko-4.1.2-py3-none-any.whl", hash = "sha256:ee1e88ecbd07f619b0bc1e90648f82a64a0adee5968c3068621bbdadbfec5c03"},
+    {file = "netmiko-4.1.2.tar.gz", hash = "sha256:f5ede2a28670d3dfd3470061468665f80f9b4906ed20e6b0fb4d9e1c9be67afc"},
 ]
 netutils = [
     {file = "netutils-1.1.0-py3-none-any.whl", hash = "sha256:bcb4367689c773cd30bf898b15bed38f22dc8bd69e64f2272bb9dd4726bf41d4"},

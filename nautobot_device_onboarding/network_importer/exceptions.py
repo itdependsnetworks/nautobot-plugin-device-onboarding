@@ -7,3 +7,7 @@ class AdapterLoadFatalError(Exception):
 
 class ConfigLoadFatalError(Exception):
     """Network Importer Exception."""
+
+
+class DriverLoadFatalError(Exception):
+    """Network Importer Exception."""

@@ -22,7 +22,8 @@ from nornir.core.inventory import Host
 from nornir.core.task import MultiResult, Task
 from pydantic import BaseModel  # pylint: disable=no-name-in-module
 
-# import network_importer.config as config  # TODO: Config
+from django.conf import settings
+
 from nautobot_device_onboarding.network_importer.processors import BaseProcessor
 from nautobot_device_onboarding.network_importer.utils import is_mac_address
 
@@ -31,6 +32,7 @@ LOGGER = logging.getLogger("network-importer")  ## TODO: Update the logger
 # Possible Junos port names xe-0/0/1.0, xe-0/0/3:0, ge, et, em sxe, fte, me, fc, xle
 # Match the incorrectly capitalized interface names
 JUNOS_INTERFACE_PATTERN = re.compile(r"^(Xe|Ge|Et|Em|Sxe|Fte|Me|Fc|Xle)-\d+/\d+/\d+[.:]*\d*$")
+PLUGIN_SETTINGS = settings.PLUGINS_CONFIG.get("nautobot_device_onboarding", {})
 
 
 # -----------------------------------------------------------------
@@ -48,7 +50,7 @@ def hosts_for_cabling(host):
     Returns:
         bool: True if the device is eligible for cabling, False otherwise.
     """
-    if host.platform in config.SETTINGS.main.excluded_platforms_cabling:
+    if host.platform in PLUGIN_SETTINGS.get("main", {}).get("excluded_platforms_cabling"):
         return False
 
     return True
@@ -140,8 +142,9 @@ class GetNeighbors(BaseProcessor):
             str: clean neighboar name
         """
         # Remove all FQDN from the hostname to match what is in the SOT
-        config.SETTINGS.network.fqdns.sort(key=len, reverse=True)
-        for fqdn in config.SETTINGS.network.fqdns:
+        fqdns = PLUGIN_SETTINGS.get("network", {}).get("fqdns")
+        fqdns.sort(key=len, reverse=True)
+        for fqdn in fqdns:
             if fqdn in neighbor_name:
                 return neighbor_name.replace(f".{fqdn}", "")
 
@@ -150,6 +153,7 @@ class GetNeighbors(BaseProcessor):
     @classmethod
     def clean_neighbor_port_name(cls, port_name):
         """Work around for https://github.com/CiscoTestAutomation/genieparser/issues/287."""
+        # TODO: Fix this, move to NTC Templates
         if JUNOS_INTERFACE_PATTERN.match(port_name):
             port_name = port_name[0].lower() + port_name[1:]
             return port_name
