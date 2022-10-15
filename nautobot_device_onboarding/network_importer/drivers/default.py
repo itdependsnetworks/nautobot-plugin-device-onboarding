@@ -1,4 +1,4 @@
-"""default driver for the network_importer.
+"""default driver for the nautobot_device_onboarding.network_importer.
 
 (c) 2020 Network To Code
 
@@ -21,7 +21,8 @@ from nornir.core.task import Result, Task
 from nornir.core.exceptions import NornirSubTaskError
 
 from django.conf import settings
-from network_importer.drivers.converters import convert_cisco_genie_cdp_neighbors_details
+# import nautobot_device_onboarding.network_importer.config as config
+from nautobot_device_onboarding.network_importer.drivers.converters import convert_cisco_genie_cdp_neighbors_details
 
 LOGGER = logging.getLogger("network-importer")
 PLUGIN_SETTINGS = settings.PLUGINS_CONFIG.get("nautobot_device_onboarding", {})
@@ -64,7 +65,7 @@ class NetworkImporterDriver:
 
         Returns:
             Result: Nornir Result object with a dict as a result containing the neighbors
-            The format of the result but must be similar to Neighbors defined in network_importer.processors.get_neighbors
+            The format of the result but must be similar to Neighbors defined in nautobot_device_onboarding.network_importer.processors.get_neighbors
         """
         LOGGER.debug("Executing get_neighbor for %s (%s)", task.host.name, task.host.platform)
 
@@ -108,7 +109,7 @@ class NetworkImporterDriver:
 
         Returns:
             Result: Nornir Result object with a dict as a result containing the vlans
-            The format of the result but must be similar to Vlans defined in network_importer.processors.get_vlans
+            The format of the result but must be similar to Vlans defined in nautobot_device_onboarding.network_importer.processors.get_vlans
         """
         LOGGER.warning("%s | Get Vlans not implemented in the default driver.", task.host.name)
 

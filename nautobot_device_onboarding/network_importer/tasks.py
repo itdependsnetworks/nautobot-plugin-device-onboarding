@@ -19,6 +19,8 @@ from typing import Optional, List
 
 from nornir.core.task import Result, Task
 
+# import nautobot_device_onboarding.network_importer.config as config  ## TODO: Config
+
 LOGGER = logging.getLogger("network-importer")  # pylint: disable=C0103
 
 

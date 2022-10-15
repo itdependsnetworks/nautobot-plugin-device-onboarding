@@ -1,4 +1,4 @@
-"""GetVlans processor for the network_importer.
+"""GetVlans processor for the nautobot_device_onboarding.network_importer.
 
 (c) 2020 Network To Code
 
@@ -17,7 +17,7 @@ from typing import List
 
 from pydantic import BaseModel  # pylint: disable=no-name-in-module
 
-from network_importer.processors import BaseProcessor
+from nautobot_device_onboarding.network_importer.processors import BaseProcessor
 
 LOGGER = logging.getLogger("network-importer")
 

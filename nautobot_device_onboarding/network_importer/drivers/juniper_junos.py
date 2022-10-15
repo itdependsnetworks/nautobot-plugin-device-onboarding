@@ -1,4 +1,4 @@
-"""default network_importer driver for cisco.
+"""default nautobot_device_onboarding.network_importer driver for cisco.
 
 (c) 2020 Network To Code
 
@@ -15,7 +15,7 @@ limitations under the License.
 
 import logging
 
-from network_importer.drivers.default import NetworkImporterDriver as DefaultNetworkImporterDriver
+from nautobot_device_onboarding.network_importer.drivers.default import NetworkImporterDriver as DefaultNetworkImporterDriver
 
 LOGGER = logging.getLogger("network-importer")
 

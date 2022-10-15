@@ -6,16 +6,16 @@ import logging
 from diffsync.exceptions import ObjectNotFound
 from diffsync import DiffSync, DiffSyncModel  # pylint: disable=unused-import
 
-import network_importer.config as config  # pylint: disable=import-error
-from network_importer.adapters.nautobot_api.exceptions import NautobotObjectNotValid
-from network_importer.models import (  # pylint: disable=import-error
+# import nautobot_device_onboarding.network_importer.config as config  # pylint: disable=import-error
+from nautobot_device_onboarding.network_importer.adapters.nautobot.exceptions import NautobotObjectNotValid
+from nautobot_device_onboarding.network_importer.models import (  # pylint: disable=import-error
     Site,
     Device,
-    Interface,
-    IPAddress,
-    Cable,
-    Prefix,
-    Vlan,
+    # Interface,
+    # IPAddress,
+    # Cable,
+    # Prefix,
+    # Vlan,
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -27,13 +27,13 @@ class NautobotSite(Site):
     remote_id: Optional[str]
 
 
-# class NautobotDevice(Device):
-#     """Extension of the Device model."""
+class NautobotDevice(Device):
+    """Extension of the Device model."""
 
-#     remote_id: Optional[str]
-#     primary_ip: Optional[str]
+    remote_id: Optional[str]
+    primary_ip: Optional[str]
 
-#     device_tag_id: Optional[str]
+    # device_tag_id: Optional[str]
 
 #     def get_device_tag_id(self):
 #         """Get the Nautobot id of the tag for this device.

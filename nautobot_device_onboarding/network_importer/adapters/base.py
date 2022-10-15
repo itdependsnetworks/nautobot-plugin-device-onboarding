@@ -1,28 +1,29 @@
 """BaseAdapter for the network importer."""
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectNotFound
-from network_importer.models import Site, Device, Interface, IPAddress, Cable, Vlan, Prefix
+# from nautobot_device_onboarding.network_importer.models import Site, Device, Interface, IPAddress, Cable, Vlan, Prefix
+from nautobot_device_onboarding.network_importer.models import Site
 
 
 class BaseAdapter(DiffSync):
     """Base Adapter for the network importer."""
 
     site = Site
-    device = Device
-    interface = Interface
-    ip_address = IPAddress
-    cable = Cable
-    vlan = Vlan
-    prefix = Prefix
+    # device = Device
+    # interface = Interface
+    # ip_address = IPAddress
+    # cable = Cable
+    # vlan = Vlan
+    # prefix = Prefix
 
-    settings_class = None
-    settings = None
+    # settings_class = None
+    # settings = None
 
-    def __init__(self, nornir, settings):
-        """Initialize the base adapter and store the Nornir object locally."""
-        super().__init__()
-        self.nornir = nornir
-        self.settings = self._validate_settings(settings)
+    # def __init__(self, nornir, settings):
+    #     """Initialize the base adapter and store the Nornir object locally."""
+    #     super().__init__()
+    #     self.nornir = nornir
+    #     self.settings = self._validate_settings(settings)
 
     def _validate_settings(self, settings):
         """Load and validate the configuration based on the settings_class."""

@@ -13,7 +13,8 @@ from diffsync.exceptions import ObjectNotFound, ObjectAlreadyExists
 # pylint: disable=import-error
 from django.conf import settings
 
-from network_importer.adapters.base import BaseAdapter
+# import nautobot_device_onboarding.network_importer.config as config   TODO: BRING IN CONFIGURATION FROM PLUGIN
+from nautobot_device_onboarding.network_importer.adapters.base import BaseAdapter
 
 from nautobot_device_onboarding.network_importer.inventory import reachable_devs, valid_and_reachable_devs
 from nautobot_device_onboarding.network_importer.tasks import check_if_reachable, warning_not_reachable

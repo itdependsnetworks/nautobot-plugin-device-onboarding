@@ -1,4 +1,4 @@
-"""GetNeighbors processor for the network_importer.
+"""GetNeighbors processor for the nautobot_device_onboarding.network_importer.
 
 (c) 2020 Network To Code
 
@@ -24,6 +24,7 @@ from pydantic import BaseModel  # pylint: disable=no-name-in-module
 
 from django.conf import settings
 
+# import nautobot_device_onboarding.network_importer.config as config  # TODO: Config
 from nautobot_device_onboarding.network_importer.processors import BaseProcessor
 from nautobot_device_onboarding.network_importer.utils import is_mac_address
 
@@ -76,7 +77,7 @@ class Neighbors(BaseModel):
 # Processor
 # -----------------------------------------------------------------
 class GetNeighbors(BaseProcessor):
-    """GetNeighbors processor for the network_importer."""
+    """GetNeighbors processor for the nautobot_device_onboarding.network_importer."""
 
     task_name = "get_neighbors"
 

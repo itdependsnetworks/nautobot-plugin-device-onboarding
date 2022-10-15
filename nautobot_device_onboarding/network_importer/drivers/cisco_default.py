@@ -1,4 +1,4 @@
-"""default network_importer driver for cisco.
+"""default nautobot_device_onboarding.network_importer driver for cisco.
 
 (c) 2020 Network To Code
 
@@ -25,8 +25,9 @@ from netmiko.ssh_exception import (
 
 from django.conf import settings
 
-from network_importer.drivers.default import NetworkImporterDriver as DefaultNetworkImporterDriver
-from network_importer.drivers.converters import (
+# import nautobot_device_onboarding.network_importer.config as config
+from nautobot_device_onboarding.network_importer.drivers.default import NetworkImporterDriver as DefaultNetworkImporterDriver
+from nautobot_device_onboarding.network_importer.drivers.converters import (
     convert_cisco_genie_lldp_neighbors_details,
     convert_cisco_genie_cdp_neighbors_details,
     convert_cisco_genie_vlans,
@@ -87,7 +88,7 @@ class NetworkImporterDriver(DefaultNetworkImporterDriver):
 
         Returns:
             Result: Nornir Result object with a dict as a result containing the neighbors
-            The format of the result but must be similar to Neighbors defined in network_importer.processors.get_neighbors
+            The format of the result but must be similar to Neighbors defined in nautobot_device_onboarding.network_importer.processors.get_neighbors
         """
         LOGGER.debug("Executing get_neighbor for %s (%s)", task.host.name, task.host.platform)
 
@@ -130,7 +131,7 @@ class NetworkImporterDriver(DefaultNetworkImporterDriver):
 
         Returns:
             Result: Nornir Result object with a dict as a result containing the vlans
-            The format of the result but must be similar to Vlans defined in network_importer.processors.get_vlans
+            The format of the result but must be similar to Vlans defined in nautobot_device_onboarding.network_importer.processors.get_vlans
         """
         LOGGER.debug("Executing get_vlans for %s (%s)", task.host.name, task.host.platform)
 

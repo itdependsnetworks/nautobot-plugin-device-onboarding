@@ -1,4 +1,4 @@
-"""Library of function to convert data from vendor specific format to network_importer.
+"""Library of function to convert data from vendor specific format to nautobot_device_onboarding.network_importer.
 
 (c) 2020 Network To Code
 
@@ -14,9 +14,9 @@ limitations under the License.
 """
 import logging
 
-from network_importer.utils import is_interface_lag
-from network_importer.processors.get_neighbors import Neighbors, Neighbor
-from network_importer.processors.get_vlans import Vlans, Vlan
+from nautobot_device_onboarding.network_importer.utils import is_interface_lag
+from nautobot_device_onboarding.network_importer.processors.get_neighbors import Neighbors, Neighbor
+from nautobot_device_onboarding.network_importer.processors.get_vlans import Vlans, Vlan
 
 LOGGER = logging.getLogger("network-importer")
 

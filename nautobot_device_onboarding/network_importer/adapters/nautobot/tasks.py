@@ -4,8 +4,8 @@
 # import pynautobot
 # from nornir.core.task import Result, Task
 
-# import network_importer.config as config  # pylint: disable=import-error
-# from network_importer.adapters.nautobot_api.settings import InventorySettings
+# import nautobot_device_onboarding.network_importer.config as config  # pylint: disable=import-error
+# from nautobot_device_onboarding.network_importer.adapters.nautobot.settings import InventorySettings
 
 # LOGGER = logging.getLogger("network-importer")
 
