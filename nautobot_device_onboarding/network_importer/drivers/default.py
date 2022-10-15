@@ -83,7 +83,9 @@ class NetworkImporterDriver:
 
         if PLUGIN_SETTINGS.get("main", {}).get("import_cabling", "").lower() == "cdp":
             try:
-                result = task.run(task=netmiko_send_command, command_string="show cdp neighbors detail", use_genie=True) # TODO convert to NTC Templates
+                result = task.run(
+                    task=netmiko_send_command, command_string="show cdp neighbors detail", use_genie=True
+                )  # TODO convert to NTC Templates
             except NornirSubTaskError:
                 LOGGER.debug("An exception occurred while pulling CDP data")
                 return Result(host=task.host, failed=True)
@@ -130,4 +132,4 @@ class NetworkImporterDriver:
         if result[0].failed:
             return result
 
-        return Result(host=task.host, result=result})
+        return Result(host=task.host, result=result)
