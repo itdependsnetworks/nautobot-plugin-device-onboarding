@@ -1,4 +1,4 @@
-ARG NAUTOBOT_VER="1.0.1"
+ARG NAUTOBOT_VER="1.4.0"
 ARG PYTHON_VER=3.8
 FROM ghcr.io/nautobot/nautobot-dev:${NAUTOBOT_VER}-py${PYTHON_VER}
 
@@ -48,5 +48,6 @@ COPY . /source
 # This will make sure that the correct Nautobot version is used.
 RUN cp /tmp/install/* /source/
 RUN poetry install --no-interaction --no-ansi
+RUN pip install setuptools
 
 COPY development/nautobot_config.py ${NAUTOBOT_ROOT}/nautobot_config.py
