@@ -130,8 +130,6 @@ class NetworkImporterAdapter(BaseAdapter):
         Returns:
             Prefix, bool: False if a prefix can't be extracted from this IP address
         """
-
-        # TODO: refactor to get data from CLI
         prefix = ipaddress.ip_network(ip_address.address, strict=False)
 
         if prefix.num_addresses == 1:
