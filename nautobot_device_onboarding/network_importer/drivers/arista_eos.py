@@ -16,7 +16,9 @@ import logging
 
 from nornir.core.task import Result, Task
 
-from nautobot_device_onboarding.network_importer.drivers.default import NetworkImporterDriver as DefaultNetworkImporterDriver
+from nautobot_device_onboarding.network_importer.drivers.default import (
+    NetworkImporterDriver as DefaultNetworkImporterDriver,
+)
 from nautobot_device_onboarding.network_importer.processors.get_vlans import Vlan, Vlans
 
 LOGGER = logging.getLogger("network-importer")

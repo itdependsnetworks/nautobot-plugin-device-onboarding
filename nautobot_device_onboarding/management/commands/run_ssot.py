@@ -3,6 +3,7 @@
 from django.core.management.base import BaseCommand
 from nautobot_device_onboarding.network_importer.adapters.nautobot.adapter import NautobotOrmAdapter
 
+from nautobot_device_onboarding.network_importer.test_file import data
 
 
 class Command(BaseCommand):
@@ -13,4 +14,7 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         """Add handler for run_config_backup."""
         orm_adapter = NautobotOrmAdapter()
-        orm_adapter.load()
+        # orm_adapter.load()
+        orm_adapter.load_from_dict(data)
+        # print(orm_adapter.str())
+        print(orm_adapter.dict())

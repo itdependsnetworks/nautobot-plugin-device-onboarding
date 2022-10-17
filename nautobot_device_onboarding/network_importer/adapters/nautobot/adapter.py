@@ -1,19 +1,22 @@
 """NautobotAPIAdapter class."""
-import imp
 import logging
-from operator import index
 import warnings
 
-from packaging.version import Version, InvalidVersion
 from nornir import InitNornir
 from netutils.ip import is_ip
 
+from graphene_django.settings import graphene_settings
+from graphql import get_default_backend
 
+from django.conf import settings
+
+PLUGIN_SETTINGS = settings.PLUGINS_CONFIG.get("nautobot_device_onboarding", {})
 
 from nautobot_plugin_nornir.plugins.inventory.nautobot_orm import NautobotORMInventory
 from nautobot.dcim.models import Device, Site
 
 from nornir.core.plugins.inventory import InventoryPluginRegister
+
 InventoryPluginRegister.register("nautobot-inventory", NautobotORMInventory)
 
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
@@ -21,25 +24,20 @@ from nautobot_device_onboarding.network_importer.adapters.nautobot.models import
     NautobotSite,
     NautobotDevice,
     NautobotInterface,
-    # NautobotIPAddress,
-    # NautobotCable,
+    NautobotIPAddress,
+    NautobotCable,
     NautobotPrefix,
     NautobotVlan,
 )
 from nautobot.users.models import User
 import uuid
 from django.test.client import RequestFactory
+
 request = RequestFactory().request(SERVER_NAME="WebRequestContext")
 request.id = uuid.uuid4()
 request.user = User.objects.get(username="admin")
 
-
-
-# import nautobot_device_onboarding.network_importer.config as config  # pylint: disable=import-error
 from nautobot_device_onboarding.network_importer.adapters.base import BaseAdapter  # pylint: disable=import-error
-
-# from nautobot_device_onboarding.network_importer.adapters.nautobot.tasks import query_device_info_from_nautobot
-# from nautobot_device_onboarding.network_importer.adapters.nautobot.settings import InventorySettings, AdapterSettings
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
@@ -49,9 +47,14 @@ with warnings.catch_warnings():
 LOGGER = logging.getLogger("network-importer")
 
 
-from graphene_django.settings import graphene_settings
-from graphql import get_default_backend
-from graphql.error import GraphQLSyntaxError
+def smart_del(dictionary, key):
+    try:
+        del dictionary[key]
+    except KeyError:
+        pass
+    return dictionary
+
+
 backend = get_default_backend()
 schema = graphene_settings.SCHEMA
 SITE_QUERY = """query ($site_id: ID!) {
@@ -91,7 +94,6 @@ DEVICE_QUERY = """query ($device_id: ID!) {
       id
       name
     }
-    
     interfaces {
       id
       name
@@ -99,6 +101,9 @@ DEVICE_QUERY = """query ($device_id: ID!) {
       mtu
       mode
       type
+      status {
+        slug
+      }
       connected_endpoint {
         __typename
       }
@@ -134,7 +139,15 @@ DEVICE_QUERY = """query ($device_id: ID!) {
   }
 }"""
 
-
+CABLE_QUERY = """query ($site_id: String) {
+  cables(site_id: [$site_id]) {
+    id
+    termination_a_id
+    termination_b_id
+    termination_a_type
+    termination_b_type
+  }
+}"""
 
 
 class NautobotOrmAdapter(BaseAdapter):
@@ -143,20 +156,21 @@ class NautobotOrmAdapter(BaseAdapter):
     site = NautobotSite
     device = NautobotDevice
     interface = NautobotInterface
-    # ip_address = NautobotIPAddress
-    # cable = NautobotCable
+    ip_address = NautobotIPAddress
+    cable = NautobotCable
     vlan = NautobotVlan
     prefix = NautobotPrefix
 
-    top_level = ["site", "device"]#, "cable"]
-
-    # nautobot = None
+    top_level = ["site", "device", "cable"]
 
     # settings_class = AdapterSettings
 
-    # type = "Nautobot"
+    type = "Nautobot"
 
-    # query_device_info_from_nautobot = query_device_info_from_nautobot
+    def __init__(self, *args, **kwargs):
+        """Ensure the cable is unique by ordering the devices alphabetically."""
+        self._interface_dict = {}
+        super().__init__(*args, **kwargs)
 
     # def _is_tag_present(self, nautobot_obj):
     #     """Find if tag is present for a given object."""
@@ -196,12 +210,13 @@ class NautobotOrmAdapter(BaseAdapter):
 
 
     def load(self):
-        """Initialize pynautobot and load all data from nautobot in the local cache."""
+        """Initialize and load all data from nautobot in the local cache."""
         sites = {}
+        devices = []
         device_names = []
         device_ids = []
+        device_id_map = {}
 
-        # results = self.nornir.run(task=query_device_info_from_nautobot)
         with InitNornir(
             runner={
                 "plugin": "threaded",
@@ -212,16 +227,12 @@ class NautobotOrmAdapter(BaseAdapter):
                 "options": {
                     "credentials_class": "nautobot_plugin_nornir.plugins.credentials.env_vars.CredentialsEnvVars",
                     "params": {},
-                    "queryset": Device.objects.filter(site__slug='ams01'),
+                    "queryset": Device.objects.filter(site__slug="ams01"),
                 },
             },
         ) as nornir_obj:
- 
-            for device_obj in nornir_obj.inventory.hosts:
-                # print(device_obj)
-                # if items[0].failed:
-                #     continue
 
+            for device_obj in nornir_obj.inventory.hosts:
                 result = nornir_obj.inventory.hosts[device_obj]
                 site_name = result.data.get("site")
 
@@ -234,19 +245,18 @@ class NautobotOrmAdapter(BaseAdapter):
                     site = sites[site_name]
 
                 device = self.device(name=device_obj, site_name=site_name, remote_id=str(result.data.get("id")))
+                devices.append(device)
                 device_names.append(device_obj)
                 device_ids.append(str(result.data.get("id")))
+                device_id_map[str(result.data.get("id"))] = device_obj
 
                 if is_ip(result.hostname):
                     device.primary_ip = result.hostname
 
                 # device = self.apply_model_flag(device, nb_device)
                 self.add(device)
-                print(device)
-                print(device.primary_ip)
 
-        print(sites)
-        # # Load Prefix and Vlan per site
+        # Load Prefix and Vlan per site
         for site_name, value in sites.items():
             site_variables = {"site_id": value.remote_id}
             document = backend.document_from_string(schema, SITE_QUERY)
@@ -256,19 +266,44 @@ class NautobotOrmAdapter(BaseAdapter):
             self.load_nautobot_vlan(sites[site_name], data)
 
         # Load interfaces and IP addresses for each devices
-        # devices = self.get_all(self.device)
-        for index, device_name in enumerate(device_names):
+        for index, device in enumerate(devices):
             device_variables = {"device_id": device_ids[index]}
             document = backend.document_from_string(schema, DEVICE_QUERY)
             gql_result = document.execute(context_value=request, variable_values=device_variables)
             data = gql_result.data
             site = sites[device.site_name]
-            # device_names.append(device.name)
             self.load_nautobot_device(site, device, data)
 
-        # # Load Cabling
-        # for site in self.get_all(self.site):
-        #     self.load_nautobot_cable(site=site, device_names=device_names)
+        # Load Cabling
+        if PLUGIN_SETTINGS.get("import_cabling") in ["lldp", "cdp"]:
+            for site_name, value in sites.items():
+                site_variables = {"site_id": value.remote_id}
+                document = backend.document_from_string(schema, CABLE_QUERY)
+                gql_result = document.execute(context_value=request, variable_values=site_variables)
+                data = gql_result.data
+                self.load_nautobot_cable(site, device_id_map, data)
+
+        # for _site in data["site"].values():
+        #     # _site = smart_del(_site, "prefixes")
+        #     # _site = smart_del(_site, "vlans")
+        #     self.add(self.site(**_site))
+        # for _device in data["device"].values():
+        #     _device = smart_del(_device, "interface")
+        #     self.add(self.device(**_device))
+        # for _cable in data["cable"].values():
+        #     self.add(self.cable(**_cable))
+        # for key, _interface in data["interface"].items():
+        #     self.add(self.interface(**_interface))
+        #     # interface = self.interface(**_interface)
+        #     # self.add(interface)
+        #     # device = self.get(NautobotDevice, _interface["device_name"])
+        #     # device.add_child(interface)
+        # for _prefix in data["prefix"].values():
+        #     self.add(self.prefix(**_prefix))
+        # for _vlan in data["vlan"].values():
+        #     self.add(self.vlan(**_vlan))
+        # for _ip_address in data["ip_address"].values():
+        #     self.add(self.ip_address(**_ip_address))
 
     def load_nautobot_device(self, site, device, data):
         """Import all interfaces and IP address from Nautobot for a given device.
@@ -276,19 +311,24 @@ class NautobotOrmAdapter(BaseAdapter):
             site (NautobotSite): Site the device is part of
             device (DiffSyncModel): Device to import
         """
-        self.load_nautobot_interface(site, device, data)
-    #     self.load_nautobot_ip_address(site=site, device=device)
+        intfs = data["device"]["interfaces"]
+        for intf in intfs:
+            self.convert_interface_from_nautobot(device, intf, site)
+
+        LOGGER.debug("%s | Found %s interfaces for %s", self.name, len(intfs), device.name)
 
     def load_nautobot_prefix(self, site, site_data):
         """Import all prefixes from Nautobot for a given site.
         Args:
             site (NautobotSite): Site to import prefix for
         """
-        # if not config.SETTINGS.main.import_prefixes:
-        #     return
+        # Adapter Model methods not accounted for
+        # vlan: Optional[str]
+
+        if PLUGIN_SETTINGS.get("import_prefixes") is False:
+            return
 
         prefixes = site_data["site"]["prefixes"]
-
 
         for nb_prefix in prefixes:
 
@@ -310,8 +350,8 @@ class NautobotOrmAdapter(BaseAdapter):
         Args:
             site (NautobotSite): Site to import vlan for
         """
-        # if config.SETTINGS.main.import_vlans in [False, "no"]:
-        #     return
+        if PLUGIN_SETTINGS.get("import_vlans") is not True:
+            return
 
         vlans = vlan_data["site"]["vlans"]
 
@@ -325,9 +365,8 @@ class NautobotOrmAdapter(BaseAdapter):
             self.add(vlan)
             site.add_child(vlan)
 
-
     def convert_interface_from_nautobot(
-        self, device, intf, int_data, site=None
+        self, device, int_data, site=None
     ):  # pylint: disable=too-many-branches,too-many-statements
         """Convert PyNautobot interface object to NautobotInterface model.
         Args:
@@ -335,26 +374,11 @@ class NautobotOrmAdapter(BaseAdapter):
             device (NautobotDevice): [description]
             intf (pynautobot interface object): [description]
         """
-        # {
-        #     "id": "ca405466-3e29-4079-bb9e-909fc5c87cd6",
-        #     "name": "Ethernet1/1",
-        #     "description": "",
-        #     "mtu": None,
-        #     "mode": None,
-        #     "type": "A_100GBASE_X_QSFP28",
-        #     "connected_endpoint": {"__typename": "InterfaceType"},
-        #     "ip_addresses": [
-        #         {"id": "6abc3fa2-ec9c-46d6-a2fc-bf1fe7ceaed3", "address": "10.11.192.0/32"}
-        #     ],
-        #     "cable": {
-        #         "termination_a_type": "dcim.interface",
-        #         "status": {"name": "Connected"},
-        #         "color": "",
-        #     },
-        #     "lag": None,
-        #     "tagged_vlans": [],
-        #     "untagged_vlan": None,
-        # }
+        # Adapter Model methods not accounted for
+        # speed: Optional[int]
+        # lag_members: List[str] = list()
+        # allowed_vlans: List[str] = list()
+        # access_vlan: Optional[str]
 
         interface = self.interface(
             name=int_data["name"],
@@ -364,16 +388,18 @@ class NautobotOrmAdapter(BaseAdapter):
             mtu=int_data["mtu"],
         )
 
-        import_vlans = False
-        # if config.SETTINGS.main.import_vlans not in [False, "no"]:
-        #     import_vlans = True
+        import_vlans = True
+        if PLUGIN_SETTINGS.get("import_vlans") is not True:
+            import_vlans = False
 
-        # # Define status if it's enabled in the config file
-        # if config.SETTINGS.main.import_intf_status:
-        #     interface.active = intf.enabled
+        # Define status if it's enabled in the config file
+        if PLUGIN_SETTINGS.get("import_intf_status") is True:
+            if int_data["status"]["slug"] == "active":
+                interface.active = True
+            else:
+                interface.active = False
 
         # Identify if the interface is physical or virtual and if it's part of a Lag
-        print(int_data)
         if int_data["type"] == "lag":
             interface.is_lag = True
             interface.is_virtual = False
@@ -392,214 +418,126 @@ class NautobotOrmAdapter(BaseAdapter):
             interface.parent = parent_interface_uid
 
         # identify Interface Mode
-        if int_data["mode"] == "access":
+        if int_data["mode"] == "ACCESS":
             interface.switchport_mode = "ACCESS"
             interface.mode = interface.switchport_mode
-        elif int_data["mode"] == "tagged":
+        elif int_data["mode"] == "TAGGED":
             interface.switchport_mode = "TRUNK"
             interface.mode = interface.switchport_mode
-        elif not int_data["mode"] and int_data['tagged_vlans']:
+        # This logic seems off to me? Why would the mode be L3_SUB?
+        elif not int_data["mode"] and int_data["tagged_vlans"]:
             interface.switchport_mode = "NONE"
             interface.mode = "L3_SUB_VLAN"
         else:
             interface.switchport_mode = "NONE"
             interface.mode = "NONE"
 
-        # TODO: This should not ever matter, there is no speed in a Nautobot interface. Hardcoding for now, revisit
-        interface.speed = 10
-        # # Identify Interface Speed based on the type
-        # if intf.type and intf.type.value == 800:
-        #     interface.speed = 1000000000
-        # elif intf.type and intf.type.value == 1100:
-        #     interface.speed = 1000000000
-        # elif intf.type and intf.type.value == 1200:
-        #     interface.speed = 10000000000
-        # elif intf.type and intf.type.value == 1350:
-        #     interface.speed = 25000000000
-        # elif intf.type and intf.type.value == 1400:
-        #     interface.speed = 40000000000
-        # elif intf.type and intf.type.value == 1600:
-        #     interface.speed = 100000000000
+        # TODO: Update and verify this logic
+        # if site and int_data.get('tagged_vlans') and import_vlans:
+        #     for vid in [v["vid"] for v in int_data['tagged_vlans']]:
+        #         try:
+        #             vlan = self.get(self.vlan, identifier=dict(vid=vid, site_name=site.name))
+        #             interface.allowed_vlans.append(vlan.get_unique_id())
+        #         except ObjectNotFound:
+        #             LOGGER.debug("%s | VLAN %s is not present for site %s", self.name, vid, site.name)
 
-        if site and int_data.get('tagged_vlans') and import_vlans:
-            for vid in [v["vid"] for v in int_data['tagged_vlans']]:
-                try:
-                    vlan = self.get(self.vlan, identifier=dict(vid=vid, site_name=site.name))
-                    interface.allowed_vlans.append(vlan.get_unique_id())
-                except ObjectNotFound:
-                    LOGGER.debug("%s | VLAN %s is not present for site %s", self.name, vid, site.name)
+        # if site and int_data["untagged_vlan"] and import_vlans:
+        #     try:
+        #         vlan = self.get(self.vlan, identifier=dict(vid=int_data["untagged_vlan"]["vid"], site_name=site.name))
+        #         interface.access_vlan = vlan.get_unique_id()
+        #     except ObjectNotFound:
+        #         LOGGER.debug("%s | VLAN %s is not present for site %s", self.name, int_data["untagged_vlan"]["vid"], site.name)
 
-        if site and int_data["untagged_vlan"] and import_vlans:
-            try:
-                vlan = self.get(self.vlan, identifier=dict(vid=int_data["untagged_vlan"]["vid"], site_name=site.name))
-                interface.access_vlan = vlan.get_unique_id()
-            except ObjectNotFound:
-                LOGGER.debug("%s | VLAN %s is not present for site %s", self.name, int_data["untagged_vlan"]["vid"], site.name)
-
-        if int_data.get("connected_endpoint", {}).get("__typename"):
+        if int_data["connected_endpoint"]:
             interface.connected_endpoint_type = int_data["connected_endpoint"]["__typename"]
 
         new_intf, created = self.get_or_add(interface)
         if created:
             device.add_child(new_intf)
 
+        # GraphQL returns [] when empty, so can just loop through nothing with no effect
+        for ip_addr in int_data["ip_addresses"]:
+            ip_address = self.ip_address(
+                interface_name=int_data["name"],
+                device_name=device.name,
+                remote_id=ip_addr["id"],
+                address=ip_addr["address"],
+            )
+
+            # Note: There was a duplicate check (ObjectAlreadyExists), does not seem to be a valid use case and we should
+            # fail fast. Potentially incorrect thought process
+            self.add(ip_address)
+            new_intf.add_child(ip_address)
+        self._interface_dict[new_intf.remote_id] = new_intf
+
         return new_intf
 
-    def load_nautobot_interface(self, site, device, device_data):
-        """Import all interfaces & Ips from Nautobot for a given device.
-
+    def load_nautobot_cable(self, site, device_id_map, cable_data):
+        """Import all Cables from Nautobot for a given site.
+        If both devices at each end of the cables are not in the list of device_id_map, the cable will be ignored.
         Args:
-            site (NautobotSite): DiffSync object representing a site
-            device (NautobotDevice): DiffSync object representing the device
+            site (Site): Site object to import cables for
+            device_id_map (dict): Dict of device IDs and names that are part of the inventory
         """
-        # intfs = self.nautobot.dcim.interfaces.filter(device=device.name)
-        # print(device_data)
-        intfs = device_data["device"]["interfaces"]
-        # print(intfs)
-        for intf in intfs:
-            print(intf)
-            self.convert_interface_from_nautobot(device, intfs, intf, site)
+        # Adapter Model methods not accounted for
+        # source: Optional[str]
+        # is_valid: bool = True
+        # error: Optional[str]
+        cables = cable_data["cables"]
+        device_names = list(device_id_map.values())
 
-        LOGGER.debug("%s | Found %s interfaces for %s", self.name, len(intfs), device.name)
+        nbr_cables = 0
+        for nb_cable in cables:
+            if nb_cable["termination_a_type"] != "dcim.interface" or nb_cable["termination_b_type"] != "dcim.interface":
+                continue
+            term_a_device_name = self._interface_dict[nb_cable["termination_a_id"]].device_name
+            term_b_device_name = self._interface_dict[nb_cable["termination_b_id"]].device_name
+            term_a_interface_name = self._interface_dict[nb_cable["termination_a_id"]].name
+            term_b_interface_name = self._interface_dict[nb_cable["termination_b_id"]].name
 
-    # name: str
-    # device_name: str
+            if (term_a_device_name not in device_names) and (term_b_device_name not in device_names):
+                LOGGER.debug(
+                    "%s | Skipping cable %s because neither devices (%s, %s) is in the list of devices",
+                    self.name,
+                    nb_cable.id,
+                    term_a_device_name,
+                    term_b_device_name,
+                )
+                continue
 
-    # description: Optional[str]
-    # mtu: Optional[int]
-    # speed: Optional[int]
-    # mode: Optional[str]  # TRUNK, ACCESS, L3, NONE
-    # switchport_mode: Optional[str] = "NONE"
-    # active: Optional[bool]
-    # is_virtual: Optional[bool]
-    # is_lag: Optional[bool]
-    # is_lag_member: Optional[bool]
-    # parent: Optional[str]
+            # Disabling this check for now until we are able to allow user to control how cabling should be imported
+            # if term_a_device_name not in device_names:
+            #     LOGGER.debug(
+            #         "%s | Skipping cable %s because %s is not in the list of devices",
+            #         self.name,
+            #         nb_cable.id,
+            #         term_a_device_name,
+            #     )
+            #     continue
 
-    # lag_members: List[str] = list()
-    # allowed_vlans: List[str] = list()
-    # access_vlan: Optional[str]
+            # if term_b_device_name not in device_names:
+            #     LOGGER.debug(
+            #         "%s | Skipping cable %s because %s is not in the list of devices",
+            #         self.name,
+            #         nb_cable.id,
+            #         term_b_device_name,
+            #     )
+            #     continue
 
-    # ips: List[str] = list()
+            cable = self.cable(
+                device_a_name=term_a_device_name,
+                interface_a_name=term_a_interface_name,
+                device_z_name=term_b_device_name,
+                interface_z_name=term_b_interface_name,
+                remote_id=nb_cable["id"],
+                status="connected",
+            )
 
-    # def load_nautobot_ip_address(self, site, device):  # pylint: disable=unused-argument
-    #     """Import all IP addresses from Nautobot for a given device.
-    #     Args:
-    #         site (NautobotSite): DiffSync object representing a site
-    #         device (NautobotDevice): DiffSync object representing the device
-    #     """
-    #     if not config.SETTINGS.main.import_ips:
-    #         return
+            try:
+                self.add(cable)
+            except ObjectAlreadyExists:
+                pass
 
-    #     ips = self.nautobot.ipam.ip_addresses.filter(device=device.name)
-    #     for ipaddr in ips:
-    #         ip_address = self.ip_address.create_from_pynautobot(diffsync=self, obj=ipaddr, device_name=device.name)
-    #         ip_address, _ = self.get_or_add(ip_address)
+            nbr_cables += 1
 
-    #         interface = self.get(
-    #             self.interface, identifier=dict(device_name=device.name, name=ip_address.interface_name)
-    #         )
-    #         try:
-    #             interface.add_child(ip_address)
-    #         except ObjectAlreadyExists:
-    #             LOGGER.error(
-    #                 "%s | Duplicate IP found for %s (%s) ; IP already imported.", self.name, ip_address, device.name
-    #             )
-
-    #     LOGGER.debug("%s | Found %s ip addresses for %s", self.name, len(ips), device.name)
-
-    # def load_nautobot_cable(self, site, device_names):
-    #     """Import all Cables from Nautobot for a given site.
-    #     If both devices at each end of the cables are not in the list of device_names, the cable will be ignored.
-    #     Args:
-    #         site (Site): Site object to import cables for
-    #         device_names (list): List of device names that are part of the inventory
-    #     """
-    #     cables = self.nautobot.dcim.cables.filter(site=site.name)
-
-    #     nbr_cables = 0
-    #     for nb_cable in cables:
-    #         if nb_cable.termination_a_type != "dcim.interface" or nb_cable.termination_b_type != "dcim.interface":
-    #             continue
-
-    #         if (nb_cable.termination_a.device.name not in device_names) and (
-    #             nb_cable.termination_b.device.name not in device_names
-    #         ):
-    #             LOGGER.debug(
-    #                 "%s | Skipping cable %s because neither devices (%s, %s) is in the list of devices",
-    #                 self.name,
-    #                 nb_cable.id,
-    #                 nb_cable.termination_a.device.name,
-    #                 nb_cable.termination_b.device.name,
-    #             )
-    #             continue
-
-    #         # Disabling this check for now until we are able to allow user to control how cabling should be imported
-    #         # if nb_cable.termination_a.device.name not in device_names:
-    #         #     LOGGER.debug(
-    #         #         "%s | Skipping cable %s because %s is not in the list of devices",
-    #         #         self.name,
-    #         #         nb_cable.id,
-    #         #         nb_cable.termination_a.device.name,
-    #         #     )
-    #         #     continue
-
-    #         # if nb_cable.termination_b.device.name not in device_names:
-    #         #     LOGGER.debug(
-    #         #         "%s | Skipping cable %s because %s is not in the list of devices",
-    #         #         self.name,
-    #         #         nb_cable.id,
-    #         #         nb_cable.termination_b.device.name,
-    #         #     )
-    #         #     continue
-
-    #         cable = self.cable(
-    #             device_a_name=nb_cable.termination_a.device.name,
-    #             interface_a_name=nb_cable.termination_a.name,
-    #             device_z_name=nb_cable.termination_b.device.name,
-    #             interface_z_name=nb_cable.termination_b.name,
-    #             remote_id=nb_cable.id,
-    #             status="connected",
-    #         )
-
-    #         try:
-    #             self.add(cable)
-    #         except ObjectAlreadyExists:
-    #             pass
-
-    #         nbr_cables += 1
-
-    #     LOGGER.debug("%s | Found %s cables in nautobot for %s", self.name, nbr_cables, site.name)
-
-    # def get_intf_from_nautobot(self, device_name, intf_name):
-    #     """Get an interface from Nautobot based on the name of the device and the name of the interface.
-    #     Exactly one return must be returned from Nautobot, the function will return False if more than 1 result are returned.
-    #     Args:
-    #         device_name (str): name of the device in nautobot
-    #         intf_name (str): name of the interface in Nautobot
-    #     Returns:
-    #         NautobotInterface, bool: Interface in DiffSync format
-    #     """
-    #     intfs = self.nautobot.dcim.interfaces.filter(name=intf_name, device=device_name)
-
-    #     if len(intfs) == 0:
-    #         # LOGGER.debug("Unable to find the interface in Nautobot for %s %s, nothing returned", device_name, intf_name)
-    #         return False
-
-    #     if len(intfs) > 1:
-    #         LOGGER.warning(
-    #             "Unable to find the proper interface in Nautobot for %s %s, more than 1 element returned",
-    #             device_name,
-    #             intf_name,
-    #         )
-    #         return False
-
-    #     intf = self.interface(name=intf_name, device_name=device_name, remote_id=intfs[0].id)
-    #     intf = self.apply_model_flag(intf, intfs[0])
-
-    #     if intfs[0].connected_endpoint_type:
-    #         intf.connected_endpoint_type = intfs[0].connected_endpoint_type
-
-    #     self.add(intf)
-
-    #     return intf
+        LOGGER.debug("%s | Found %s cables in nautobot for %s", self.name, nbr_cables, site.name)

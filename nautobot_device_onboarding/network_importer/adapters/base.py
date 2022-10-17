@@ -1,20 +1,20 @@
 """BaseAdapter for the network importer."""
-from diffsync import DiffSync
+import inspect
+from diffsync import DiffSync, DiffSyncModel
 from diffsync.exceptions import ObjectNotFound
-# from nautobot_device_onboarding.network_importer.models import Site, Device, Interface, IPAddress, Cable, Vlan, Prefix
-from nautobot_device_onboarding.network_importer.models import Site
+from nautobot_device_onboarding.network_importer.models import Site, Device, Interface, IPAddress, Cable, Vlan, Prefix
 
 
 class BaseAdapter(DiffSync):
     """Base Adapter for the network importer."""
 
     site = Site
-    # device = Device
-    # interface = Interface
-    # ip_address = IPAddress
+    device = Device
+    interface = Interface
+    ip_address = IPAddress
     # cable = Cable
-    # vlan = Vlan
-    # prefix = Prefix
+    vlan = Vlan
+    prefix = Prefix
 
     # settings_class = None
     # settings = None
@@ -38,6 +38,24 @@ class BaseAdapter(DiffSync):
     def load(self):
         """Load the local cache with data from the remove system."""
         raise NotImplementedError
+
+    def load_from_dict(self, data):
+        """Load the data from a dictionary."""
+        if hasattr(self, "top_level") and isinstance(getattr(self, "top_level"), list):
+            value_order = self.top_level
+        else:
+            value_order = []
+
+        for item in dir(self):
+            _method = getattr(self, item)
+            if item in value_order:
+                continue
+            if inspect.isclass(_method) and issubclass(_method, DiffSyncModel):
+                value_order.append(item)
+        for key in value_order:
+            model_type = getattr(self, key)
+            for values in data.get(key, {}).values():
+                self.add(model_type(**values))
 
     def get_or_create_vlan(self, vlan, site=None):
         """Check if a vlan already exist before creating it. Returns the existing object if it already exist.

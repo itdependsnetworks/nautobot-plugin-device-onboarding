@@ -12,8 +12,8 @@ from nautobot_device_onboarding.network_importer.models import (  # pylint: disa
     Site,
     Device,
     Interface,
-    # IPAddress,
-    # Cable,
+    IPAddress,
+    Cable,
     Prefix,
     Vlan,
 )
@@ -34,6 +34,7 @@ class NautobotDevice(Device):
     primary_ip: Optional[str]
 
     # device_tag_id: Optional[str]
+
 
 #     def get_device_tag_id(self):
 #         """Get the Nautobot id of the tag for this device.
@@ -59,6 +60,7 @@ class NautobotInterface(Interface):
 
     remote_id: Optional[str]
     connected_endpoint_type: Optional[str]
+
 
 #     def translate_attrs_for_nautobot(self, attrs):  # pylint: disable=too-many-branches
 #         """Translate interface attributes into Nautobot format.
@@ -266,10 +268,11 @@ class NautobotInterface(Interface):
 #         return self
 
 
-# class NautobotIPAddress(IPAddress):
-#     """Extension of the IPAddress model."""
+class NautobotIPAddress(IPAddress):
+    """Extension of the IPAddress model."""
 
-#     remote_id: Optional[str]
+    remote_id: Optional[str]
+
 
 #     def translate_attrs_for_nautobot(self, attrs=None):  # pylint: disable=unused-argument
 #         """Translate IP address attributes into Nautobot format.
@@ -382,6 +385,7 @@ class NautobotPrefix(Prefix):
 
     remote_id: Optional[str]
 
+
 #     def translate_attrs_for_nautobot(self, attrs):
 #         """Translate prefix attributes into Nautobot format.
 #         Args:
@@ -462,6 +466,7 @@ class NautobotVlan(Vlan):
 
     remote_id: Optional[str]
     tag_prefix: str = "device="
+
 
 #     def translate_attrs_for_nautobot(self, attrs):
 #         """Translate vlan attributes into Nautobot format.
@@ -592,12 +597,13 @@ class NautobotVlan(Vlan):
 #         return super().update(attrs)
 
 
-# class NautobotCable(Cable):
-#     """Extension of the Cable model."""
+class NautobotCable(Cable):
+    """Extension of the Cable model."""
 
-#     remote_id: Optional[str]
-#     termination_a_id: Optional[str]
-#     termination_z_id: Optional[str]
+    remote_id: Optional[str]
+    termination_a_id: Optional[str]
+    termination_z_id: Optional[str]
+
 
 #     @classmethod
 #     def create(cls, diffsync: "DiffSync", ids: dict, attrs: dict) -> Optional["DiffSyncModel"]:

@@ -62,6 +62,7 @@ class Interface(DiffSyncModel):  # pylint: disable=too-many-instance-attributes
     _modelname = "interface"
     _identifiers = ("device_name", "name")
     _shortname = ("name",)
+    # TODO: Why are we setting mtu, active, and speed if not actually considered?
     _attributes = (
         "description",
         # "mtu",
@@ -83,18 +84,18 @@ class Interface(DiffSyncModel):  # pylint: disable=too-many-instance-attributes
     mtu: Optional[int]
     speed: Optional[int]
     mode: Optional[str]  # TRUNK, ACCESS, L3, NONE
-    switchport_mode: Optional[str] = "NONE"
+    switchport_mode: Optional[str] = "NONE"  # Not in Nautobot
     active: Optional[bool]
     is_virtual: Optional[bool]
     is_lag: Optional[bool]
-    is_lag_member: Optional[bool]
-    parent: Optional[str]
+    is_lag_member: Optional[bool]  # Not in Nautobot
+    parent: Optional[str]  # Not the same
 
-    lag_members: List[str] = list()
-    allowed_vlans: List[str] = list()
-    access_vlan: Optional[str]
+    lag_members: List[str] = list()  # Not in Nautobot
+    allowed_vlans: List[str] = list()  # tagged_vlans??
+    access_vlan: Optional[str]  # untagged_vlan??
 
-    ips: List[str] = list()
+    ips: List[str] = list()  # ip_addresses??
 
 
 class IPAddress(DiffSyncModel):
@@ -122,7 +123,7 @@ class Prefix(DiffSyncModel):
     _attributes = ("vlan",)
 
     prefix: str
-    site_name: Optional[str]
+    site_name: Optional[str]  # site
     vlan: Optional[str]
 
 

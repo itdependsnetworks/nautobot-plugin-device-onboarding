@@ -42,6 +42,10 @@ class OnboardingConfig(PluginConfig):
             "ios": "nautobot_device_onboarding.onboarding_extensions.ios",
         },
         "object_match_strategy": "loose",
+        "import_vlans": True,
+        "import_intf_status": True,
+        "import_prefixes": True,
+        "import_cabling": "lldp",
     }
     caching_config = {}
 

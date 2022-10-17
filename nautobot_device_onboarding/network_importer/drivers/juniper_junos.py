@@ -15,7 +15,9 @@ limitations under the License.
 
 import logging
 
-from nautobot_device_onboarding.network_importer.drivers.default import NetworkImporterDriver as DefaultNetworkImporterDriver
+from nautobot_device_onboarding.network_importer.drivers.default import (
+    NetworkImporterDriver as DefaultNetworkImporterDriver,
+)
 
 LOGGER = logging.getLogger("network-importer")
 

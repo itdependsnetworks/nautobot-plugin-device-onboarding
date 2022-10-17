@@ -21,6 +21,7 @@ from nornir.core.task import Result, Task
 from nornir.core.exceptions import NornirSubTaskError
 
 from django.conf import settings
+
 # import nautobot_device_onboarding.network_importer.config as config
 from nautobot_device_onboarding.network_importer.drivers.converters import convert_cisco_genie_cdp_neighbors_details
 

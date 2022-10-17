@@ -26,7 +26,9 @@ from netmiko.ssh_exception import (
 from django.conf import settings
 
 # import nautobot_device_onboarding.network_importer.config as config
-from nautobot_device_onboarding.network_importer.drivers.default import NetworkImporterDriver as DefaultNetworkImporterDriver
+from nautobot_device_onboarding.network_importer.drivers.default import (
+    NetworkImporterDriver as DefaultNetworkImporterDriver,
+)
 from nautobot_device_onboarding.network_importer.drivers.converters import (
     convert_cisco_genie_lldp_neighbors_details,
     convert_cisco_genie_cdp_neighbors_details,
