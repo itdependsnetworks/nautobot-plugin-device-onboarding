@@ -164,7 +164,7 @@ class NautobotOrmAdapter(BaseAdapter):
 
     type = "Nautobot"
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs): # REMOVE????
         """Ensure the cable is unique by ordering the devices alphabetically."""
         self._interface_dict = {}
         super().__init__(*args, **kwargs)

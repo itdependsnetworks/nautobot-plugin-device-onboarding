@@ -85,7 +85,7 @@ class BaseAdapter(DiffSync):
     def load_from_dict(self, data):
         """Load the data from a dictionary."""
         if hasattr(self, "top_level") and isinstance(getattr(self, "top_level"), list):
-            value_order = self.top_level
+            value_order = self.top_level.copy()
         else:
             value_order = []
 
