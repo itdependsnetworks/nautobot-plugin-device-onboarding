@@ -24,14 +24,9 @@ LOGGER = logging.getLogger(__name__)
 class NautobotSite(Site):
     """Extension of the Site model."""
 
-    remote_id: Optional[str]
-
 
 class NautobotDevice(Device):
     """Extension of the Device model."""
-
-    remote_id: Optional[str]
-    primary_ip: Optional[str]
 
     # device_tag_id: Optional[str]
 

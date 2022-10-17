@@ -2,9 +2,6 @@
 import logging
 import warnings
 
-from nornir import InitNornir
-from netutils.ip import is_ip
-
 from graphene_django.settings import graphene_settings
 from graphql import get_default_backend
 
@@ -207,81 +204,36 @@ class NautobotOrmAdapter(BaseAdapter):
     #         diffsync_obj.model_flags = model_flag
     #     return diffsync_obj
 
-
-
     def load(self):
         """Initialize and load all data from nautobot in the local cache."""
-        sites = {}
-        devices = []
-        device_names = []
-        device_ids = []
-        device_id_map = {}
-
-        with InitNornir(
-            runner={
-                "plugin": "threaded",
-            },
-            logging={"enabled": False},
-            inventory={
-                "plugin": "nautobot-inventory",
-                "options": {
-                    "credentials_class": "nautobot_plugin_nornir.plugins.credentials.env_vars.CredentialsEnvVars",
-                    "params": {},
-                    "queryset": Device.objects.filter(site__slug="ams01"),
-                },
-            },
-        ) as nornir_obj:
-
-            for device_obj in nornir_obj.inventory.hosts:
-                result = nornir_obj.inventory.hosts[device_obj]
-                site_name = result.data.get("site")
-
-                if site_name not in sites:
-                    site_id = Site.objects.get(slug=site_name)
-                    site = self.site(name=site_name, remote_id=str(site_id.pk))
-                    sites[site_name] = site
-                    self.add(site)
-                else:
-                    site = sites[site_name]
-
-                device = self.device(name=device_obj, site_name=site_name, remote_id=str(result.data.get("id")))
-                devices.append(device)
-                device_names.append(device_obj)
-                device_ids.append(str(result.data.get("id")))
-                device_id_map[str(result.data.get("id"))] = device_obj
-
-                if is_ip(result.hostname):
-                    device.primary_ip = result.hostname
-
-                # device = self.apply_model_flag(device, nb_device)
-                self.add(device)
+        self.load_inventory()
 
         # Load Prefix and Vlan per site
-        for site_name, value in sites.items():
-            site_variables = {"site_id": value.remote_id}
+        for site in self.get_all(self.site):
+            site_variables = {"site_id": site.remote_id}
             document = backend.document_from_string(schema, SITE_QUERY)
             gql_result = document.execute(context_value=request, variable_values=site_variables)
             data = gql_result.data
-            self.load_nautobot_prefix(sites[site_name], data)
-            self.load_nautobot_vlan(sites[site_name], data)
+            self.load_nautobot_prefix(site, data)
+            self.load_nautobot_vlan(site, data)
 
         # Load interfaces and IP addresses for each devices
-        for index, device in enumerate(devices):
-            device_variables = {"device_id": device_ids[index]}
+        for device in self.get_all(self.device):
+            device_variables = {"device_id": device.remote_id}
             document = backend.document_from_string(schema, DEVICE_QUERY)
             gql_result = document.execute(context_value=request, variable_values=device_variables)
             data = gql_result.data
-            site = sites[device.site_name]
+            site = self.get(self.site, device.site_name)
             self.load_nautobot_device(site, device, data)
 
         # Load Cabling
         if PLUGIN_SETTINGS.get("import_cabling") in ["lldp", "cdp"]:
-            for site_name, value in sites.items():
-                site_variables = {"site_id": value.remote_id}
+            for site in self.get_all(self.site):
+                site_variables = {"site_id": site.remote_id}
                 document = backend.document_from_string(schema, CABLE_QUERY)
                 gql_result = document.execute(context_value=request, variable_values=site_variables)
                 data = gql_result.data
-                self.load_nautobot_cable(site, device_id_map, data)
+                self.load_nautobot_cable(site, data)
 
         # for _site in data["site"].values():
         #     # _site = smart_del(_site, "prefixes")
@@ -472,7 +424,7 @@ class NautobotOrmAdapter(BaseAdapter):
 
         return new_intf
 
-    def load_nautobot_cable(self, site, device_id_map, cable_data):
+    def load_nautobot_cable(self, site, cable_data):
         """Import all Cables from Nautobot for a given site.
         If both devices at each end of the cables are not in the list of device_id_map, the cable will be ignored.
         Args:
@@ -484,7 +436,7 @@ class NautobotOrmAdapter(BaseAdapter):
         # is_valid: bool = True
         # error: Optional[str]
         cables = cable_data["cables"]
-        device_names = list(device_id_map.values())
+        device_names = [device.name for device in self.get_all(self.device)]
 
         nbr_cables = 0
         for nb_cable in cables:

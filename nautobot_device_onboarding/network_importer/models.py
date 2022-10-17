@@ -30,6 +30,7 @@ class Site(DiffSyncModel):
     name: str
     prefixes: List = list()
     vlans: List[str] = list()
+    remote_id: Optional[str]
 
 
 class Device(DiffSyncModel):
@@ -51,6 +52,8 @@ class Device(DiffSyncModel):
     model: Optional[str]
     role: Optional[str]
     vendor: Optional[str]
+    remote_id: Optional[str]
+    primary_ip: Optional[str]
 
 
 class Interface(DiffSyncModel):  # pylint: disable=too-many-instance-attributes

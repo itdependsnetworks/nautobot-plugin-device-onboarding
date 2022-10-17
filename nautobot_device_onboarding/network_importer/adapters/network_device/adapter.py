@@ -46,29 +46,33 @@ class IPData:
 class NetworkImporterAdapter(BaseAdapter):
     """Adapter to import data from a network based on Batfish."""
 
-    top_level = ["site", "device", "cable"]
+    top_level = ["site", "device"]#, "cable"]
 
     type = "Network"
 
     def load(self):
         """Load all data from the network in the local cache."""
-        sites = {}
+        # Josh, I changed this, the way I understand the flor, the site and devices will
+        # always come from Nautobot. We should use exactly the same code then. I changed the logic to
+        # accomodate.
+        # sites = {}
 
-        # Create all devices and site object from Nornir Inventory
-        for hostname, host in self.nornir.inventory.hosts.items():
+        # # Create all devices and site object from Nornir Inventory
+        # for hostname, host in self.nornir.inventory.hosts.items():
 
-            self.nornir.inventory.hosts[hostname].has_config = True
+        #     self.nornir.inventory.hosts[hostname].has_config = True
 
-            # Check that the host site_name is in the sites dictionary.
-            if host.site_name not in sites:
-                site = self.site(name=host.site_name)
-                sites[host.site_name] = site
-                self.add(site)
-            else:
-                site = sites[host.site_name]
+        #     # Check that the host site_name is in the sites dictionary.
+        #     if host.site_name not in sites:
+        #         site = self.site(name=host.site_name)
+        #         sites[host.site_name] = site
+        #         self.add(site)
+        #     else:
+        #         site = sites[host.site_name]
 
-            device = self.device(name=hostname, site_name=host.site_name)
-            self.add(device)
+        #     device = self.device(name=hostname, site_name=host.site_name)
+        #     self.add(device)
+        self.load_inventory()
 
         if PLUGIN_SETTINGS.get("import_cabling") in ["lldp", "cdp"] or PLUGIN_SETTINGS.get("import_vlans") in [
             True,

@@ -14,7 +14,7 @@ limitations under the License.
 """
 import logging
 
-from network_importer.processors import BaseProcessor
+from nautobot_device_onboarding.network_importer.processors import BaseProcessor
 
 LOGGER = logging.getLogger("network-importer")
 

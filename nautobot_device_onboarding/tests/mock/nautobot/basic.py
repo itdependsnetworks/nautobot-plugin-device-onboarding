@@ -57,45 +57,54 @@ data = {
             "device_name": "ams01-dist-01",
             "interface_name": "vlan101",
             "address": "10.100.1.1/24",
+            "remote_id": "6abc3fa2-ec9c-46d6-a2fc-bf1fe7ceaed3",
         },
         "ams01-edge-01__vlan102__10.100.2.1/24": {
             "device_name": "ams01-edge-01",
             "interface_name": "vlan102",
             "address": "10.100.2.1/24",
+            "remote_id": "b4a26c39-f230-4920-b14c-08db2f9f3109",
         },
         "ams01-edge-02__vlan103__10.100.3.1/24": {
             "device_name": "ams01-edge-02",
             "interface_name": "vlan103",
             "address": "10.100.3.1/24",
+            "remote_id": "96a68dcb-9035-4014-866f-36c12721b605",
         },
         "ams01-dist-01__Loopback0__10.11.128.1/32": {
             "device_name": "ams01-dist-01",
             "interface_name": "Loopback0",
             "address": "10.11.128.1/32",
+            "remote_id": "0ba6018b-dfe5-40b8-bea9-62ee03eec595",
         },
         "ams01-edge-01__Loopback0__10.11.128.2/32": {
             "device_name": "ams01-edge-01",
             "interface_name": "Loopback0",
             "address": "10.11.128.2/32",
+            "remote_id": "46621cee-1f10-41e6-a45a-7e75b868a6a2",
         },
         "ams01-edge-02__Loopback0__10.11.128.3/32": {
             "device_name": "ams01-edge-02",
             "interface_name": "Loopback0",
             "address": "10.11.128.3/32",
+            "remote_id": "a43b029b-01cb-4d24-ad17-9aa8dcdc1a9a",
         },
     },
     "prefix": {
         "AMS01__10.100.1.0/24": {
             "prefix": "10.100.1.0/24",
             "site_name": "AMS01",
+            "remote_id": "091242d4-74c6-4c73-b2f4-c355a0d6c47d",
         },
         "AMS01__10.100.2.0/24": {
             "prefix": "10.100.2.0/24",
             "site_name": "AMS01",
+            "remote_id": "b6a59cf8-252c-4d16-bd8b-e68e33f99685",
         },
         "AMS01__10.100.3.0/24": {
             "prefix": "10.100.3.0/24",
             "site_name": "AMS01",
+            "remote_id": "757a2168-a8f8-4812-9a07-515fa1782233",
         },
     },
     "interface": {
@@ -107,16 +116,19 @@ data = {
             "is_virtual": False,
             "is_lag": False,
             "ips": ["ams01-dist-01__vlan101__10.100.1.1/24"],
+            "remote_id": "6da73e09-1ffa-401d-8648-b95cfcab8a15",
         },
         "ams01-dist-01__Ethernet1/1": {
             "name": "Ethernet1/1",
             "device_name": "ams01-dist-01",
+            "description": "ams01-dist-01",
             "mode": "ACCESS",
             "switchport_mode": "ACCESS",
             "active": True,
             "is_virtual": False,
             "is_lag": False,
             "remote_id": "ca405466-3e29-4079-bb9e-909fc5c87cd6",
+            "connected_endpoint_type": "InterfaceType",
         },
         "ams01-dist-01__Ethernet2/1": {
             "name": "Ethernet2/1",
@@ -125,6 +137,8 @@ data = {
             "active": True,
             "is_virtual": False,
             "is_lag": False,
+            "remote_id": "512a66e9-163d-48e4-909d-6cd2f3ee431d",
+            "connected_endpoint_type": "InterfaceType",
         },
         "ams01-dist-01__Loopback0": {
             "name": "Loopback0",
@@ -134,6 +148,7 @@ data = {
             "is_virtual": False,
             "is_lag": False,
             "ips": ["ams01-dist-01__Loopback0__10.11.128.1/32"],
+            "remote_id": "24ec276d-7f4f-4a6c-bdd8-296599b2454c",
         },
         "ams01-edge-01__vlan102": {
             "name": "vlan102",
@@ -143,15 +158,19 @@ data = {
             "is_virtual": False,
             "is_lag": False,
             "ips": ["ams01-edge-01__vlan102__10.100.2.1/24"],
+            "remote_id": "ce5f5576-e964-4a67-aa74-0d36b9589112",
         },
         "ams01-edge-01__Ethernet1/1": {
             "name": "Ethernet1/1",
             "device_name": "ams01-edge-01",
+            "description": "ams01-edge-01",
             "mode": "ACCESS",
             "switchport_mode": "ACCESS",
             "active": True,
             "is_virtual": False,
             "is_lag": False,
+            "remote_id": "0ad4b408-2de3-41da-908a-e4e0fbe4779b",
+            "connected_endpoint_type": "InterfaceType",
         },
         "ams01-edge-01__Ethernet2/1": {
             "name": "Ethernet2/1",
@@ -160,6 +179,8 @@ data = {
             "active": True,
             "is_virtual": False,
             "is_lag": False,
+            "remote_id": "09e6d3e1-4b96-411c-be74-37a78ae37883",
+            "connected_endpoint_type": "InterfaceType",
         },
         "ams01-edge-01__Loopback0": {
             "name": "Loopback0",
@@ -169,6 +190,7 @@ data = {
             "is_virtual": False,
             "is_lag": False,
             "ips": ["ams01-edge-01__Loopback0__10.11.128.2/32"],
+            "remote_id": "81011ce9-b887-4bb6-9847-2f073be66d77",
         },
         "ams01-edge-02__vlan103": {
             "name": "vlan103",
@@ -178,15 +200,19 @@ data = {
             "is_virtual": False,
             "is_lag": False,
             "ips": ["ams01-edge-02__vlan103__10.100.3.1/24"],
+            "remote_id": "d280c2ae-52c5-42e6-ae60-95924eb4cffe",
         },
         "ams01-edge-02__Ethernet1/1": {
             "name": "Ethernet1/1",
             "device_name": "ams01-edge-02",
+            "description": "ams01-edge-02",
             "mode": "ACCESS",
             "switchport_mode": "ACCESS",
             "active": True,
             "is_virtual": False,
             "is_lag": False,
+            "remote_id": "f2e57c78-cba0-43f1-bd52-909bb9a6f08e",
+            "connected_endpoint_type": "InterfaceType",
         },
         "ams01-edge-02__Ethernet2/1": {
             "name": "Ethernet2/1",
@@ -195,6 +221,8 @@ data = {
             "active": True,
             "is_virtual": False,
             "is_lag": False,
+            "remote_id": "8b31b1f2-034b-4d27-84f2-e217fd8babad",
+            "connected_endpoint_type": "InterfaceType",
         },
         "ams01-edge-02__Loopback0": {
             "name": "Loopback0",
@@ -204,6 +232,7 @@ data = {
             "is_virtual": False,
             "is_lag": False,
             "ips": ["ams01-edge-02__Loopback0__10.11.128.3/32"],
+            "remote_id": "be610be0-ab0c-485f-a72a-f1afaf06e335",
         },
     },
     "vlan": {
@@ -215,6 +244,7 @@ data = {
                 "ams01-edge-01",
                 "ams01-edge-02",
             ],
+            "remote_id": "665db066-be21-4425-8274-50a23d504b4f",
         },
         "AMS01__102": {
             "vid": 102,
@@ -224,6 +254,7 @@ data = {
                 "ams01-edge-01",
                 "ams01-edge-02",
             ],
+            "remote_id": "f290f41a-93fe-4029-a12e-7a928ab0f264",
         },
         "AMS01__103": {
             "vid": 103,
@@ -233,6 +264,16 @@ data = {
                 "ams01-edge-01",
                 "ams01-edge-02",
             ],
+            "remote_id": "f633b9df-865a-4736-a024-c36c27a1fe21",
+        },
+    },
+    "cable": {
+        "ams01-edge-01__Ethernet2/1__ams01-edge-02__Ethernet2/1": {
+            "device_a_name": "ams01-edge-01",
+            "interface_a_name": "Ethernet2/1",
+            "device_z_name": "ams01-edge-02",
+            "interface_z_name": "Ethernet2/1",
+            "remote_id": "28b9b5b3-fd97-4846-88ab-08396cfcdeef",
         },
     },
 }
