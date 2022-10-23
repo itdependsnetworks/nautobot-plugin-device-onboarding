@@ -13,6 +13,7 @@ from nautobot_device_onboarding.tests.mock.network_device.basic import data as n
 # enable_console_logging(verbosity=1)  # Also include INFO logs
 # enable_console_logging(verbosity=2)  # Also include DEBUG logs
 
+
 class Command(BaseCommand):
     """Boilerplate Command to inherit from BaseCommand."""
 
@@ -25,11 +26,22 @@ class Command(BaseCommand):
         # nautobot_adapter.load_from_dict(data)
         # print(nautobot_adapter.str())
         # print(nautobot_adapter.dict())
+        # del nautobot_data["interface"]["ams01-edge-01__Ethernet1/1"]
+        # nautobot_data["device"]["ams01-edge-01"]["interfaces"].remove("ams01-edge-01__Ethernet1/1")
+        # nautobot_data["interface"]["ams01-edge-01__Ethernet2/1"]["description"] = "MY DEC"
+
+        del nautobot_data["interface"]["ams01-edge-01__vlan101"]
+        nautobot_data["device"]["ams01-edge-01"]["interfaces"].remove("ams01-edge-01__vlan101")
+        del nautobot_data["ip_address"]["ams01-edge-01__vlan101__10.100.1.1/24"]
 
         nautobot_adapter = NautobotOrmAdapter()
         nautobot_adapter.load_from_dict(nautobot_data)
+
         network_adapter = NetworkImporterAdapter()
         network_adapter.load_from_dict(network_data)
         # breakpoint()
-        diff_a_b = nautobot_adapter.diff_to(network_adapter)
+        diff_a_b = network_adapter.diff_to(nautobot_adapter)
         print(diff_a_b.str())
+        network_adapter.sync_to(nautobot_adapter)
+
+        # "ams01-edge-02__Ethernet1/1": {

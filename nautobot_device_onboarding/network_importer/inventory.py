@@ -10,7 +10,7 @@ from nornir.core.inventory import Host, Group, ConnectionOptions
 class NetworkImporterHost(Host):
     """Network Importer Host Class."""
 
-    site_name: Optional[str]
+    site: Optional[str]
     """Name of the site this device belong to."""
 
     is_reacheable: Optional[bool]

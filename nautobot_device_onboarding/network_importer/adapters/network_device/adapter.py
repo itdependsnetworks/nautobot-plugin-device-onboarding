@@ -39,14 +39,14 @@ class IPData:
     host: ip_interface
     prefix: str
     prefix_length: int
-    interface_name: str
+    interface: str
     address_family: str
 
 
 class NetworkImporterAdapter(BaseAdapter):
     """Adapter to import data from a network based on Batfish."""
 
-    top_level = ["site", "device"]#, "cable"]
+    top_level = ["status", "site", "device"]  # , "cable"]
 
     type = "Network"
 
@@ -62,15 +62,15 @@ class NetworkImporterAdapter(BaseAdapter):
 
         #     self.nornir.inventory.hosts[hostname].has_config = True
 
-        #     # Check that the host site_name is in the sites dictionary.
-        #     if host.site_name not in sites:
-        #         site = self.site(name=host.site_name)
-        #         sites[host.site_name] = site
+        #     # Check that the host site is in the sites dictionary.
+        #     if host.site not in sites:
+        #         site = self.site(name=host.site)
+        #         sites[host.site] = site
         #         self.add(site)
         #     else:
-        #         site = sites[host.site_name]
+        #         site = sites[host.site]
 
-        #     device = self.device(name=hostname, site_name=host.site_name)
+        #     device = self.device(name=hostname, site=host.site)
         #     self.add(device)
         self.load_inventory()
 
@@ -98,7 +98,7 @@ class NetworkImporterAdapter(BaseAdapter):
             return_list = []
 
             # Parse through the IPv4 Addresses found
-            for interface_name, interface_data in ip_data.items():
+            for interface, interface_data in ip_data.items():
                 for address_family, address_data in interface_data.items():
                     for ip_address, prefix_data in address_data.items():
                         interface_data = ip_interface(f"{ip_address}/{prefix_data['prefix_length']}")
@@ -107,7 +107,7 @@ class NetworkImporterAdapter(BaseAdapter):
                                 host=interface_data,
                                 prefix=interface_data.network,
                                 prefix_length=prefix_data["prefix_length"],
-                                interface_name=interface_name,
+                                interface=interface,
                                 address_family=address_family,
                             )
                         )
@@ -121,8 +121,8 @@ class NetworkImporterAdapter(BaseAdapter):
             .run(task=dispatcher, method="get_ips")
         )
 
-        # Anticipating that self.device.name is the hostname that corresponds to the Nornir inventory
-        return parse_nornir_get_ip_data(results[self.device.name].result[0].result["get_interfaces_ip"])
+        # Anticipating that self.device.slug is the hostname that corresponds to the Nornir inventory
+        return parse_nornir_get_ip_data(results[self.device.slug].result[0].result["get_interfaces_ip"])
 
     def add_prefix_from_ip(self, ip_address, site, vlan=None):
         """Try to extract a prefix from an IP address and save it locally.
@@ -141,12 +141,12 @@ class NetworkImporterAdapter(BaseAdapter):
             return False
 
         try:
-            prefix_obj = self.get(self.prefix, identifier=dict(site_name=site.name, prefix=prefix))
+            prefix_obj = self.get(self.prefix, identifier=dict(site=site.slug, prefix=prefix))
         except ObjectNotFound:
             prefix_obj = None
 
         if not prefix_obj:
-            prefix_obj = self.prefix(prefix=str(prefix), site_name=site.name, vlan=vlan)
+            prefix_obj = self.prefix(prefix=str(prefix), site=site.slug, vlan=vlan)
             self.add(prefix_obj)
             site.add_child(prefix_obj)
             LOGGER.debug("Added Prefix %s", prefix)
@@ -191,10 +191,10 @@ class NetworkImporterAdapter(BaseAdapter):
                 continue
 
             device = self.get(self.device, identifier=dev_name)
-            site = self.get(self.site, identifier=device.site_name)
+            site = self.get(self.site, identifier=device.site)
 
             for vlan in items[1].result["vlans"]:
-                new_vlan, created = self.get_or_add(self.vlan(vid=vlan["vid"], name=vlan["name"], site_name=site.name))
+                new_vlan, created = self.get_or_add(self.vlan(vid=vlan["vid"], name=vlan["name"], site=site.slug))
 
                 if created:
                     site.add_child(new_vlan)
@@ -230,10 +230,10 @@ class NetworkImporterAdapter(BaseAdapter):
 
             for interface, neighbors in items[1][0].result["neighbors"].items():
                 cable = self.cable(
-                    device_a_name=dev_name,
-                    interface_a_name=interface,
-                    device_z_name=neighbors[0]["hostname"],
-                    interface_z_name=neighbors[0]["port"],
+                    termination_a_device=dev_name,
+                    termination_a=interface,
+                    termination_b_device=neighbors[0]["hostname"],
+                    termination_b=neighbors[0]["port"],
                     source="cli",
                 )
                 nbr_cables += 1
@@ -255,14 +255,14 @@ class NetworkImporterAdapter(BaseAdapter):
         interfaces = self.get_all(self.interface)
 
         for intf in interfaces:
-            if intf.allowed_vlans:
-                clean_allowed_vlans = []
-                for vlan in intf.allowed_vlans:
+            if intf.tagged_vlans:
+                clean_tagged_vlans = []
+                for vlan in intf.tagged_vlans:
                     if vlan in vlans.keys():
-                        clean_allowed_vlans.append(vlan)
-                        vlans[vlan].add_device(intf.device_name)
+                        clean_tagged_vlans.append(vlan)
+                        vlans[vlan].add_device(intf.device)
 
-                intf.allowed_vlans = clean_allowed_vlans
+                intf.tagged_vlans = clean_tagged_vlans
 
     def validate_cabling(self):
         """Check if all cables are valid.
@@ -290,7 +290,7 @@ class NetworkImporterAdapter(BaseAdapter):
                 return True
 
             try:
-                intf = self.get(self.interface, identifier=dict(name=intf_name, device_name=dev_name))
+                intf = self.get(self.interface, identifier=dict(name=intf_name, device=dev_name))
             except ObjectNotFound:
                 return True
 
@@ -306,15 +306,15 @@ class NetworkImporterAdapter(BaseAdapter):
             #     self.delete(cable)
             #     return False
 
-            if intf.is_virtual:
-                LOGGER.debug(
-                    "CABLE: %s:%s is a virtual interface, can't be used for cabling SKIPPING (%s side)",
-                    dev_name,
-                    intf_name,
-                    side,
-                )
-                self.remove(cable)
-                return False
+            # if intf.is_virtual:
+            #     LOGGER.debug(
+            #         "CABLE: %s:%s is a virtual interface, can't be used for cabling SKIPPING (%s side)",
+            #         dev_name,
+            #         intf_name,
+            #         side,
+            #     )
+            #     self.remove(cable)
+            #     return False
 
             return True
 

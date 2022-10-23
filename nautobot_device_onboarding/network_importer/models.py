@@ -1,18 +1,6 @@
-"""DiffSync Models for the network importer.
-
-(c) 2020 Network To Code
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-  http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-"""
+"""DiffSync Models for the network importer."""
 from typing import List, Optional
+
 
 from diffsync import DiffSyncModel
 
@@ -24,13 +12,15 @@ class Site(DiffSyncModel):
     """
 
     _modelname = "site"
-    _identifiers = ("name",)
+    _identifiers = ("slug",)
+    _attributes = ("pk",)
     _children = {"vlan": "vlans", "prefix": "prefixes"}
+    _unique_fields = ("pk",)
 
-    name: str
+    slug: str
     prefixes: List = list()
     vlans: List[str] = list()
-    remote_id: Optional[str]
+    pk: Optional[str]
 
 
 class Device(DiffSyncModel):
@@ -40,20 +30,22 @@ class Device(DiffSyncModel):
     """
 
     _modelname = "device"
-    _identifiers = ("name",)
-    _attributes = ("site_name",)
+    _identifiers = ("slug",)
+    _attributes = ("site", "primary_ip")
     _children = {"interface": "interfaces"}
+    _unique_fields = ("pk",)
 
-    name: str
-    site_name: Optional[str]
+    slug: str
+    site: Optional[str]
     interfaces: List = list()
-
-    platform: Optional[str]
-    model: Optional[str]
-    role: Optional[str]
-    vendor: Optional[str]
-    remote_id: Optional[str]
     primary_ip: Optional[str]
+    pk: Optional[str]
+
+    # TODO: Not currently used``
+    platform: Optional[str]
+    model: Optional[str]  # device_type
+    device_role: Optional[str]
+    vendor: Optional[str]  # a.platform.manufacturer
 
 
 class Interface(DiffSyncModel):  # pylint: disable=too-many-instance-attributes
@@ -63,42 +55,49 @@ class Interface(DiffSyncModel):  # pylint: disable=too-many-instance-attributes
     """
 
     _modelname = "interface"
-    _identifiers = ("device_name", "name")
+    _identifiers = ("device", "name")
     _shortname = ("name",)
     # TODO: Why are we setting mtu, active, and speed if not actually considered?
     _attributes = (
         "description",
         # "mtu",
-        "is_virtual",
-        "is_lag",
-        "is_lag_member",
-        "parent",
+        # "is_virtual",
+        # "is_lag",
+        # "is_lag_member",
+        # "parent",
         "mode",
-        "switchport_mode",
-        "allowed_vlans",
-        "access_vlan",
+        # "switchport_mode",
+        "tagged_vlans",
+        "untagged_vlan",
+        # "ip_addresses",
+        "status",
+        "type",
     )
-    _children = {"ip_address": "ips"}
+    _children = {"ip_address": "ip_addresses"}
+    _foreign_key = {"device": "device", "status": "status"}
+    _many_to_many = {"vlan": "tagged_vlans"}
 
     name: str
-    device_name: str
+    device: str
+    status: str
+    type: str
 
     description: Optional[str]
     mtu: Optional[int]
-    speed: Optional[int]
     mode: Optional[str]  # TRUNK, ACCESS, L3, NONE
-    switchport_mode: Optional[str] = "NONE"  # Not in Nautobot
-    active: Optional[bool]
-    is_virtual: Optional[bool]
-    is_lag: Optional[bool]
-    is_lag_member: Optional[bool]  # Not in Nautobot
+    # is_virtual: Optional[bool]
+    # is_lag: Optional[bool]
+    ip_addresses: List[str] = list()
+    tagged_vlans: List[str] = list()
+    untagged_vlan: Optional[str]
+
     parent: Optional[str]  # Not the same
 
+    speed: Optional[int]  # Not in Nautobot
+    switchport_mode: Optional[str] = "NONE"  # Not in Nautobot
+    is_lag_member: Optional[bool]  # Not in Nautobot
+    active: Optional[bool]  # Not in Nautobot
     lag_members: List[str] = list()  # Not in Nautobot
-    allowed_vlans: List[str] = list()  # tagged_vlans??
-    access_vlan: Optional[str]  # untagged_vlan??
-
-    ips: List[str] = list()  # ip_addresses??
 
 
 class IPAddress(DiffSyncModel):
@@ -108,11 +107,16 @@ class IPAddress(DiffSyncModel):
     """
 
     _modelname = "ip_address"
-    _identifiers = ("device_name", "interface_name", "address")
+    _identifiers = ("device", "interface", "address")
+    _attributes = ("status",)
+    _skip = ("interface",)
+    _foreign_key = {"status": "status"}
+    _many_to_many = {}
 
-    device_name: str
-    interface_name: str
+    device: str  # interface.all()[0].device
+    interface: str
     address: str
+    status: str
 
 
 class Prefix(DiffSyncModel):
@@ -122,12 +126,45 @@ class Prefix(DiffSyncModel):
     """
 
     _modelname = "prefix"
-    _identifiers = ("site_name", "prefix")
-    _attributes = ("vlan",)
+    _identifiers = ("site", "prefix")
+    _attributes = ("vlan", "status")
+    _foreign_key = {"site": "site", "status": "status"}
+    _many_to_many = {}
 
     prefix: str
-    site_name: Optional[str]  # site
+    site: Optional[str]  # site
     vlan: Optional[str]
+    status: str
+
+
+class Vlan(DiffSyncModel):
+    """Vlan Model based on DiffSyncModel.
+
+    An Vlan must be associated with a Site and the vlan_id msut be unique within a site.
+    """
+
+    _modelname = "vlan"
+    _identifiers = ("site", "vid")
+    _attributes = ("name", "status")
+    _foreign_key = {"site": "site", "status": "status"}
+    _many_to_many = {}
+
+    vid: int
+    site: str
+    status: str
+    name: Optional[str]
+
+    associations: List[str] = list()
+
+    def add_device(self, device):
+        """Add a device to the list of associated devices.
+
+        Args:
+            device (str): name of a device to associate with this VLAN
+        """
+        if device not in self.associations:
+            self.associations.append(device)
+            self.associations = sorted(self.associations)
 
 
 class Cable(DiffSyncModel):
@@ -135,37 +172,37 @@ class Cable(DiffSyncModel):
 
     _modelname = "cable"
     _identifiers = (
-        "device_a_name",
-        "interface_a_name",
-        "device_z_name",
-        "interface_z_name",
+        "termination_a_device",
+        "termination_a",
+        "termination_b_device",
+        "termination_b",
     )
 
-    device_a_name: str
-    interface_a_name: str
-    device_z_name: str
-    interface_z_name: str
+    termination_a_device: str  # mapped to _termination_a_device
+    termination_a: str
+    termination_b_device: str  # mapped to _termination_b_device
+    termination_b: str
 
-    source: Optional[str]
-    is_valid: bool = True
-    error: Optional[str]
+    source: Optional[str]  # Not in Nautobot
+    is_valid: bool = True  # Not in Nautobot
+    error: Optional[str]  # Not in Nautobot
 
     def __init__(self, *args, **kwargs):
         """Ensure the cable is unique by ordering the devices alphabetically."""
-        if "device_a_name" not in kwargs or "device_z_name" not in kwargs:
-            raise ValueError("device_a_name and device_z_name are mandatory")
-        if not kwargs["device_a_name"] or not kwargs["device_z_name"]:
-            raise ValueError("device_a_name and device_z_name are mandatory and must not be None")
+        if "termination_a_device" not in kwargs or "termination_b_device" not in kwargs:
+            raise ValueError("termination_a_device and termination_b_device are mandatory")
+        if not kwargs["termination_a_device"] or not kwargs["termination_b_device"]:
+            raise ValueError("termination_a_device and termination_b_device are mandatory and must not be None")
 
-        keys_to_copy = ["device_a_name", "interface_a_name", "device_z_name", "interface_z_name"]
+        keys_to_copy = ["termination_a_device", "termination_a", "termination_b_device", "termination_b"]
         ids = {key: kwargs[key] for key in keys_to_copy}
 
-        devices = [kwargs["device_a_name"], kwargs["device_z_name"]]
+        devices = [kwargs["termination_a_device"], kwargs["termination_b_device"]]
         if sorted(devices) != devices:
-            ids["device_a_name"] = kwargs["device_z_name"]
-            ids["interface_a_name"] = kwargs["interface_z_name"]
-            ids["device_z_name"] = kwargs["device_a_name"]
-            ids["interface_z_name"] = kwargs["interface_a_name"]
+            ids["termination_a_device"] = kwargs["termination_b_device"]
+            ids["termination_a"] = kwargs["termination_b"]
+            ids["termination_b_device"] = kwargs["termination_a_device"]
+            ids["termination_b"] = kwargs["termination_a"]
 
         for key in keys_to_copy:
             del kwargs[key]
@@ -182,39 +219,28 @@ class Cable(DiffSyncModel):
             ValueError: when the side is not either a or z
 
         Returns:
-            (device_name (str), interface_name (str))
+            (device (str), interface (str))
         """
         if side.lower() == "a":
-            return self.device_a_name, self.interface_a_name
+            return self.termination_a_device, self.termination_a
 
         if side.lower() == "z":
-            return self.device_z_name, self.interface_z_name
+            return self.termination_b_device, self.termination_b
 
         raise ValueError("side must be either 'a' or 'z'")
 
 
-class Vlan(DiffSyncModel):
-    """Vlan Model based on DiffSyncModel.
+class Status(DiffSyncModel):
+    """Status Model based on DiffSyncModel.
 
-    An Vlan must be associated with a Site and the vlan_id msut be unique within a site.
+    A status must have a unique name and can be composed of Vlans and Prefixes.
     """
 
-    _modelname = "vlan"
-    _identifiers = ("site_name", "vid")
-    _attributes = ("name", "associated_devices")
+    _modelname = "status"
+    _identifiers = ("slug",)
+    _unique_fields = ("pk",)
+    _attributes = ("pk", "name")
 
-    vid: int
-    site_name: str
-    name: Optional[str]
-
-    associated_devices: List[str] = list()
-
-    def add_device(self, device_name):
-        """Add a device to the list of associated devices.
-
-        Args:
-            device_name (str): name of a device to associate with this VLAN
-        """
-        if device_name not in self.associated_devices:
-            self.associated_devices.append(device_name)
-            self.associated_devices = sorted(self.associated_devices)
+    slug: str
+    name: str
+    pk: Optional[str]
