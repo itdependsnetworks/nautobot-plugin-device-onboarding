@@ -7,7 +7,7 @@ from nornir.core.task import Result, Task
 
 from django.conf import settings
 
-# import nautobot_device_onboarding.network_importer.config as config  ## TODO: Adding configuration settings
+# TODO: Adding configuration settings, was: import nautobot_device_onboarding.network_importer.config as config
 
 LOGGER = logging.getLogger("network-importer")
 PLUGIN_SETTINGS = settings.PLUGINS_CONFIG.get("nautobot_device_onboarding", {})

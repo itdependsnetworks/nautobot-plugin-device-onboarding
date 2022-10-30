@@ -11,13 +11,11 @@ from nautobot_device_onboarding.network_importer.models import (
     Device,
     Interface,
     IPAddress,
-    Cable,
+    # Cable,
     Vlan,
     Prefix,
     Status,
 )
-
-from typing import List, Text, Type, Union
 
 from nautobot.dcim import models
 from nautobot.extras import models as extras_models
@@ -74,7 +72,6 @@ class BaseAdapter(DiffSync):
 
     def load_inventory(self):
         """Initialize and load all data from nautobot in the local cache."""
-
         with InitNornir(
             runner={
                 "plugin": "threaded",

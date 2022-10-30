@@ -11,7 +11,6 @@ data = {
                 "ams01__101",
                 "ams01__102",
             ],
-            "pk": "6cd7cf29-a053-4a4c-bad8-1a00a333a859",
         },
     },
     "device": {
@@ -24,7 +23,6 @@ data = {
                 "ams01-edge-01__Ethernet2/1",
                 "ams01-edge-01__Loopback0",
             ],
-            "pk": "fa864cd3-6f6c-489a-a2ab-446efb827a18",
             "primary_ip": "10.11.128.1",
         },
         "ams01-edge-02": {
@@ -36,7 +34,6 @@ data = {
                 "ams01-edge-02__Ethernet2/1",
                 "ams01-edge-02__Loopback0",
             ],
-            "pk": "f64c9fe1-8169-474e-90e5-a07583f4a6f5",
             "primary_ip": "10.11.128.2",
         },
         "ams01-edge-03": {
@@ -48,7 +45,6 @@ data = {
                 "ams01-edge-03__Ethernet2/1",
                 "ams01-edge-03__Loopback0",
             ],
-            "pk": "3f5b346e-613b-4059-8af8-f1ff2c577bd1",
             "primary_ip": "10.11.128.3",
         },
     },
@@ -295,6 +291,88 @@ data = {
                 "ams01-edge-02",
                 "ams01-edge-03",
             ],
+        },
+    },
+    "status": {
+        "planned": {
+            "slug": "planned",
+            "name": "Planned",
+        },
+        "provisioning": {
+            "slug": "provisioning",
+            "name": "Provisioning",
+        },
+        "active": {
+            "slug": "active",
+            "name": "Active",
+        },
+        "offline": {
+            "slug": "offline",
+            "name": "Offline",
+        },
+        "deprovisioning": {
+            "slug": "deprovisioning",
+            "name": "Deprovisioning",
+        },
+        "decommissioned": {
+            "slug": "decommissioned",
+            "name": "Decommissioned",
+        },
+        "connected": {
+            "slug": "connected",
+            "name": "Connected",
+        },
+        "decommissioning": {
+            "slug": "decommissioning",
+            "name": "Decommissioning",
+        },
+        "staged": {
+            "slug": "staged",
+            "name": "Staged",
+        },
+        "failed": {
+            "slug": "failed",
+            "name": "Failed",
+        },
+        "inventory": {
+            "slug": "inventory",
+            "name": "Inventory",
+        },
+        "maintenance": {
+            "slug": "maintenance",
+            "name": "Maintenance",
+        },
+        "staging": {
+            "slug": "staging",
+            "name": "Staging",
+        },
+        "retired": {
+            "slug": "retired",
+            "name": "Retired",
+        },
+        "reserved": {
+            "slug": "reserved",
+            "name": "Reserved",
+        },
+        "available": {
+            "slug": "available",
+            "name": "Available",
+        },
+        "deprecated": {
+            "slug": "deprecated",
+            "name": "Deprecated",
+        },
+        "dhcp": {
+            "slug": "dhcp",
+            "name": "DHCP",
+        },
+        "slaac": {
+            "slug": "slaac",
+            "name": "SLAAC",
+        },
+        "container": {
+            "slug": "container",
+            "name": "Container",
         },
     },
 }

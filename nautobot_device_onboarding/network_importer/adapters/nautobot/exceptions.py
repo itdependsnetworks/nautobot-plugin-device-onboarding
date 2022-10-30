@@ -1,4 +1,4 @@
-"""Custom Exceptions for the NautobotAPIAdapter."""
+"""Custom Exceptions for the NautobotORMAdapter."""
 
 
 class NautobotObjectNotValid(Exception):

@@ -1,19 +1,16 @@
 """Custom Exceptions for the NetworkImporterAdapter."""
 import ipaddress
 import logging
-from collections import defaultdict
 from ipaddress import ip_interface
 from dataclasses import dataclass
 
 from django.conf import settings
 
 
-from diffsync.exceptions import ObjectNotFound, ObjectAlreadyExists
+from diffsync.exceptions import ObjectNotFound
 
 # pylint: disable=import-error
-from django.conf import settings
 
-# import nautobot_device_onboarding.network_importer.config as config   TODO: BRING IN CONFIGURATION FROM PLUGIN
 from nautobot_device_onboarding.network_importer.adapters.base import BaseAdapter
 
 from nautobot_device_onboarding.network_importer.inventory import reachable_devs, valid_and_reachable_devs
@@ -22,11 +19,12 @@ from nautobot_device_onboarding.network_importer.drivers import dispatcher
 from nautobot_device_onboarding.network_importer.processors.get_neighbors import GetNeighbors, hosts_for_cabling
 from nautobot_device_onboarding.network_importer.processors.get_vlans import GetVlans
 from nautobot_device_onboarding.network_importer.processors.get_ips import GetIPs
-from nautobot_device_onboarding.network_importer.utils import (
-    is_interface_lag,
-    is_interface_physical,
-    expand_vlans_list,
-)
+
+# from nautobot_device_onboarding.network_importer.utils import (
+#     is_interface_lag,
+#     is_interface_physical,
+#     expand_vlans_list,
+# )
 
 LOGGER = logging.getLogger("network-importer")
 PLUGIN_SETTINGS = settings.PLUGINS_CONFIG.get("nautobot_device_onboarding", {})
@@ -83,7 +81,8 @@ class NetworkImporterAdapter(BaseAdapter):
 
         self.load_vlans()
         self.load_cabling()
-        ip_addresses = self.get_ipaddresses_from_napalm()
+        # TODO: Not actually used, remove the F841 when updated
+        ip_addresses = self.get_ipaddresses_from_napalm()  # noqa: F841
         # Loop over each of the ip addresses (which should be in a dictionary)
         # TODO: Build out interfaces that need to be made
         # TODO: Build out Prefixes
@@ -290,7 +289,8 @@ class NetworkImporterAdapter(BaseAdapter):
                 return True
 
             try:
-                intf = self.get(self.interface, identifier=dict(name=intf_name, device=dev_name))
+                # TODO: Not actually used right now, update F841 when complete
+                intf = self.get(self.interface, identifier=dict(name=intf_name, device=dev_name))  # noqa: F841
             except ObjectNotFound:
                 return True
 

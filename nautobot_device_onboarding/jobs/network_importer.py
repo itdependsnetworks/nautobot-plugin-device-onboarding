@@ -2,15 +2,10 @@
 
 This job syncrhonizes data using the Nautobot SSOT sync pattern
 """
-from django.templatetags.static import static
-from django.urls import reverse
 from nautobot.extras.jobs import BooleanVar, Job
-from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
+from nautobot_ssot.jobs.base import DataSource
 
 from diffsync import DiffSyncFlags
-from nautobot.extras.jobs import Job
-
-from nautobot_device_onboarding.network_importer.adapters.network_device import NetworkImporterAdapter
 
 name = "SSoT - Network Importer"
 

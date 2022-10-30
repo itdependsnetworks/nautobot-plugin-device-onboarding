@@ -13,9 +13,8 @@ class Site(DiffSyncModel):
 
     _modelname = "site"
     _identifiers = ("slug",)
-    _attributes = ("pk",)
     _children = {"vlan": "vlans", "prefix": "prefixes"}
-    _unique_fields = ("pk",)
+    _generic_relation = {}
 
     slug: str
     prefixes: List = list()
@@ -33,7 +32,7 @@ class Device(DiffSyncModel):
     _identifiers = ("slug",)
     _attributes = ("site", "primary_ip")
     _children = {"interface": "interfaces"}
-    _unique_fields = ("pk",)
+    _generic_relation = {}
 
     slug: str
     site: Optional[str]
@@ -41,7 +40,7 @@ class Device(DiffSyncModel):
     primary_ip: Optional[str]
     pk: Optional[str]
 
-    # TODO: Not currently used``
+    # TODO: Not currently used
     platform: Optional[str]
     model: Optional[str]  # device_type
     device_role: Optional[str]
@@ -75,7 +74,8 @@ class Interface(DiffSyncModel):  # pylint: disable=too-many-instance-attributes
     )
     _children = {"ip_address": "ip_addresses"}
     _foreign_key = {"device": "device", "status": "status"}
-    _many_to_many = {"vlan": "tagged_vlans"}
+    _many_to_many = {"tagged_vlans": "vlan"}
+    _generic_relation = {}
 
     name: str
     device: str
@@ -109,9 +109,11 @@ class IPAddress(DiffSyncModel):
     _modelname = "ip_address"
     _identifiers = ("device", "interface", "address")
     _attributes = ("status",)
-    _skip = ("interface",)
     _foreign_key = {"status": "status"}
     _many_to_many = {}
+    _generic_relation = {
+        "interface": {"parent": "interface", "identifiers": ["device", "interface"], "attr": "assigned_object"}
+    }
 
     device: str  # interface.all()[0].device
     interface: str
@@ -130,6 +132,7 @@ class Prefix(DiffSyncModel):
     _attributes = ("vlan", "status")
     _foreign_key = {"site": "site", "status": "status"}
     _many_to_many = {}
+    _generic_relation = {}
 
     prefix: str
     site: Optional[str]  # site
@@ -148,6 +151,7 @@ class Vlan(DiffSyncModel):
     _attributes = ("name", "status")
     _foreign_key = {"site": "site", "status": "status"}
     _many_to_many = {}
+    _generic_relation = {}
 
     vid: int
     site: str
@@ -177,6 +181,7 @@ class Cable(DiffSyncModel):
         "termination_b_device",
         "termination_b",
     )
+    _generic_relation = {}
 
     termination_a_device: str  # mapped to _termination_a_device
     termination_a: str
@@ -187,47 +192,48 @@ class Cable(DiffSyncModel):
     is_valid: bool = True  # Not in Nautobot
     error: Optional[str]  # Not in Nautobot
 
-    def __init__(self, *args, **kwargs):
-        """Ensure the cable is unique by ordering the devices alphabetically."""
-        if "termination_a_device" not in kwargs or "termination_b_device" not in kwargs:
-            raise ValueError("termination_a_device and termination_b_device are mandatory")
-        if not kwargs["termination_a_device"] or not kwargs["termination_b_device"]:
-            raise ValueError("termination_a_device and termination_b_device are mandatory and must not be None")
+    # TODO: This should be moved to the adapter if needed.
+    # def __init__(self, *args, **kwargs):
+    #     """Ensure the cable is unique by ordering the devices alphabetically."""
+    #     if "termination_a_device" not in kwargs or "termination_b_device" not in kwargs:
+    #         raise ValueError("termination_a_device and termination_b_device are mandatory")
+    #     if not kwargs["termination_a_device"] or not kwargs["termination_b_device"]:
+    #         raise ValueError("termination_a_device and termination_b_device are mandatory and must not be None")
 
-        keys_to_copy = ["termination_a_device", "termination_a", "termination_b_device", "termination_b"]
-        ids = {key: kwargs[key] for key in keys_to_copy}
+    #     keys_to_copy = ["termination_a_device", "termination_a", "termination_b_device", "termination_b"]
+    #     ids = {key: kwargs[key] for key in keys_to_copy}
 
-        devices = [kwargs["termination_a_device"], kwargs["termination_b_device"]]
-        if sorted(devices) != devices:
-            ids["termination_a_device"] = kwargs["termination_b_device"]
-            ids["termination_a"] = kwargs["termination_b"]
-            ids["termination_b_device"] = kwargs["termination_a_device"]
-            ids["termination_b"] = kwargs["termination_a"]
+    #     devices = [kwargs["termination_a_device"], kwargs["termination_b_device"]]
+    #     if sorted(devices) != devices:
+    #         ids["termination_a_device"] = kwargs["termination_b_device"]
+    #         ids["termination_a"] = kwargs["termination_b"]
+    #         ids["termination_b_device"] = kwargs["termination_a_device"]
+    #         ids["termination_b"] = kwargs["termination_a"]
 
-        for key in keys_to_copy:
-            del kwargs[key]
+    #     for key in keys_to_copy:
+    #         del kwargs[key]
 
-        super().__init__(*args, **ids, **kwargs)
+    #     super().__init__(*args, **ids, **kwargs)
 
-    def get_device_intf(self, side):
-        """Get the device name and the interface name for a given side.
+    # def get_device_intf(self, side):
+    #     """Get the device name and the interface name for a given side.
 
-        Args:
-            side (str): site to query, must be either a or z
+    #     Args:
+    #         side (str): site to query, must be either a or z
 
-        Raises:
-            ValueError: when the side is not either a or z
+    #     Raises:
+    #         ValueError: when the side is not either a or z
 
-        Returns:
-            (device (str), interface (str))
-        """
-        if side.lower() == "a":
-            return self.termination_a_device, self.termination_a
+    #     Returns:
+    #         (device (str), interface (str))
+    #     """
+    #     if side.lower() == "a":
+    #         return self.termination_a_device, self.termination_a
 
-        if side.lower() == "z":
-            return self.termination_b_device, self.termination_b
+    #     if side.lower() == "z":
+    #         return self.termination_b_device, self.termination_b
 
-        raise ValueError("side must be either 'a' or 'z'")
+    #     raise ValueError("side must be either 'a' or 'z'")
 
 
 class Status(DiffSyncModel):
@@ -238,8 +244,8 @@ class Status(DiffSyncModel):
 
     _modelname = "status"
     _identifiers = ("slug",)
-    _unique_fields = ("pk",)
-    _attributes = ("pk", "name")
+    _attributes = ("name",)
+    _generic_relation = {}
 
     slug: str
     name: str

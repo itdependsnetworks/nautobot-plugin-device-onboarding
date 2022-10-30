@@ -1,17 +1,4 @@
-"""GetNeighbors processor for the nautobot_device_onboarding.network_importer.
-
-(c) 2020 Network To Code
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-  http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-"""
+"""GetNeighbors processor for the nautobot_device_onboarding.network_importer."""
 from collections import defaultdict
 import logging
 import re
@@ -24,11 +11,10 @@ from pydantic import BaseModel  # pylint: disable=no-name-in-module
 
 from django.conf import settings
 
-# import nautobot_device_onboarding.network_importer.config as config  # TODO: Config
 from nautobot_device_onboarding.network_importer.processors import BaseProcessor
 from nautobot_device_onboarding.network_importer.utils import is_mac_address
 
-LOGGER = logging.getLogger("network-importer")  ## TODO: Update the logger
+LOGGER = logging.getLogger(__name__)
 
 # Possible Junos port names xe-0/0/1.0, xe-0/0/3:0, ge, et, em sxe, fte, me, fc, xle
 # Match the incorrectly capitalized interface names
