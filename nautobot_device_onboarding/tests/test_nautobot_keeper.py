@@ -9,18 +9,21 @@ from nautobot.dcim.models import Site, Manufacturer, DeviceType, DeviceRole, Dev
 from nautobot.ipam.models import IPAddress
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Status
+from nautobot.utilities.testing.mixins import NautobotTestCaseMixin
 
 from nautobot_device_onboarding.exceptions import OnboardException
 from nautobot_device_onboarding.nautobot_keeper import NautobotKeeper
 
+
 PLUGIN_SETTINGS = settings.PLUGINS_CONFIG["nautobot_device_onboarding"]
 
 
-class NautobotKeeperTestCase(TestCase):
+class NautobotKeeperTestCase(TestCase, NautobotTestCaseMixin):
     """Test the NautobotKeeper Class."""
 
     def setUp(self):
         """Create a superuser and token for API calls."""
+        super().setUpNautobot(populate_status=True)
         self.site1 = Site.objects.create(name="USWEST", slug="uswest")
         DATA = (
             {

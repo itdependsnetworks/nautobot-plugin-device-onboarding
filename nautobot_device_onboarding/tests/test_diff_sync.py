@@ -1,5 +1,6 @@
 """Unit tests for network_importer sync status."""
 import uuid
+import copy
 from django.test import TestCase
 
 from django.test.client import RequestFactory
@@ -11,7 +12,8 @@ from nautobot_device_onboarding.tests.mock.network_device.basic import data as n
 
 from nautobot_device_onboarding.network_importer.adapters.nautobot.adapter import NautobotOrmAdapter
 from nautobot_device_onboarding.network_importer.adapters.network_device.adapter import NetworkImporterAdapter
-import copy
+from nautobot_device_onboarding.network_importer.diff import NetworkImporterDiff
+
 
 User = get_user_model()
 
@@ -39,22 +41,20 @@ class NetworkImporterModelTestCase(TestCase):
         nautobot_adapter.load()
         local_network_data = copy.deepcopy(network_data)
 
-        local_network_data["interface"]["ams01-edge-01__Ethernet3/1"] = {
-            "name": "Ethernet3/1",
+        local_network_data["interface"]["ams01-edge-01__Ethernet5/1"] = {
+            "name": "Ethernet5/1",
             "device": "ams01-edge-01",
             "mode": "access",
             "description": "",
-            "active": True,
-            "is_lag": False,
             "type": "10gbase-t",
             "tagged_vlans": [],
             "status": "active",
         }
-        local_network_data["device"]["ams01-edge-01"]["interfaces"].append("ams01-edge-01__Ethernet3/1")
+        local_network_data["device"]["ams01-edge-01"]["interfaces"].append("ams01-edge-01__Ethernet5/1")
 
         network_adapter = NetworkImporterAdapter()
         network_adapter.load_from_dict(local_network_data)
-        nautobot_adapter.sync_from(network_adapter)
+        nautobot_adapter.sync_from(network_adapter, diff_class=NetworkImporterDiff)
         self.assertEqual(Interface.objects.filter(name="Ethernet3/1").count(), 1)
 
     def test_first_update(self):
@@ -65,7 +65,7 @@ class NetworkImporterModelTestCase(TestCase):
 
         network_adapter_from_data = NetworkImporterAdapter()
         network_adapter_from_data.load_from_dict(local_network_data)
-        nautobot_adapter.sync_from(network_adapter_from_data)
+        nautobot_adapter.sync_from(network_adapter_from_data, diff_class=NetworkImporterDiff)
         self.assertEqual(Interface.objects.filter(description="new description")[0].description, "new description")
 
     def test_first_delete(self):
@@ -77,5 +77,5 @@ class NetworkImporterModelTestCase(TestCase):
 
         network_adapter_from_data = NetworkImporterAdapter()
         network_adapter_from_data.load_from_dict(local_network_data)
-        nautobot_adapter.sync_from(network_adapter_from_data)
+        nautobot_adapter.sync_from(network_adapter_from_data, diff_class=NetworkImporterDiff)
         self.assertEqual(Interface.objects.filter(name="Ethernet1/1").count(), 2)

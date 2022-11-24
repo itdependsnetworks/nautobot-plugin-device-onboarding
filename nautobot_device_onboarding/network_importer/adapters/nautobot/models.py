@@ -1,6 +1,6 @@
 """Extension of the base Models for the NautobotORMAdapter."""
-from typing import Optional
 import logging
+from typing import Optional
 
 from nautobot.dcim import models as dcim_models
 from nautobot.ipam import models as ipam_models
@@ -22,11 +22,14 @@ LOGGER = logging.getLogger(__name__)
 
 def get_fk(fks, diffsync, key, value):
     """Function to get the pk of an object, given information stored in ORM."""
+    # fks comes from self._foreign_keys
+    # key matches a key in `_foreign_keys` which is the local attribute
+    # value is the get_unique_id() we are looking for
     if key in list(fks.keys()):
-        _key = [k for k, v in fks.items() if v == key][0]
-        key_model = diffsync.meta[_key]
-        pk = diffsync.get(key, value).pk
-        return key_model.objects.get(pk=pk)
+        model = [val for _key, val in fks.items() if _key == key][0]
+        key_model = diffsync.meta[model]
+        pkey = diffsync.get(model, value).pk
+    return key_model.objects.get(pk=pkey)
 
 
 class NautobotMixin:
@@ -45,7 +48,7 @@ class NautobotMixin:
         for key, value in instance_values.items():
             if hasattr(self, "_skip") and key in self._skip:
                 continue
-            elif key not in combined:
+            if key not in combined:
                 setattr(obj, key, value)
             else:
                 if not value:  # need to find the value of the other object, if none exists, that won't work
@@ -63,35 +66,40 @@ class NautobotMixin:
                     db_obj = get_fk(self._foreign_key, diffsync, key, value)
                     setattr(obj, key, db_obj)
                 if key in list(self._many_to_many.keys()):
-                    db_obj = get_fk(self._many_to_many, diffsync, key, value)
-                    obj.set(db_obj)
+                    if isinstance(value, list):
+                        for val in value:
+                            db_obj = get_fk(self._many_to_many, diffsync, key, val)
+                            getattr(obj, key).add(db_obj)
+                    else:
+                        db_obj = get_fk(self._many_to_many, diffsync, key, value)
+                        obj.set(db_obj)
 
         obj.validated_save()
         if not self.pk:
             setattr(self, "pk", obj.pk)
         return self
 
-    def update(self, attrs):
+    def update(self, attrs):  # pylint: disable=too-many-branches
         """Create Method to handle generically."""
         db_model = self.Meta.model
         diffsync = self.diffsync
         combined = list(self._foreign_key.keys()) + list(self._many_to_many.keys())
         instance_values = {**attrs}
-        vars = self.get_identifiers()
-        for key, val in vars.items():
+        _vars = self.get_identifiers()
+        for key, val in _vars.items():
             if key in list(self._foreign_key.keys()):
                 db_obj = get_fk(self._foreign_key, diffsync, key, val)
-                vars[key] = str(db_obj.pk)
+                _vars[key] = str(db_obj.pk)
             if key in list(self._many_to_many.keys()):
                 db_obj = get_fk(self._many_to_many, diffsync, key, val)
-                vars[key] = str(db_obj.pk)
+                _vars[key] = str(db_obj.pk)
 
-        obj = db_model.objects.get(**vars)
+        obj = db_model.objects.get(**_vars)
 
         for key, value in instance_values.items():
             if hasattr(self, "_skip") and key in self._skip:
                 continue
-            elif key not in combined:
+            if key not in combined:
                 setattr(obj, key, value)
             else:
                 if not value:  # need to find the value of the other object, if none exists, that won't work
@@ -109,32 +117,19 @@ class NautobotMixin:
                     db_obj = get_fk(self._foreign_key, diffsync, key, value)
                     setattr(obj, key, db_obj)
                 if key in list(self._many_to_many.keys()):
-                    db_obj = get_fk(self._many_to_many, diffsync, key, value)
-                    obj.set(db_obj)
+                    if isinstance(value, list):
+                        for val in value:
+                            db_obj = get_fk(self._many_to_many, diffsync, key, val)
+                            getattr(obj, key).add(db_obj)
+                    else:
+                        db_obj = get_fk(self._many_to_many, diffsync, key, value)
+                        obj.set(db_obj)
         obj.save()
         return super().update(attrs)
 
     def delete(self):
         """Create Method to handle generically."""
         db_model = self.Meta.model
-        # TODO: Remove once sure it is not required
-        # diffsync = self.diffsync
-        # vars = self.get_identifiers()
-        # for key, val in vars.items():
-        #     if key in list(self._generic_relation.keys()):
-        #         with_parent = {key: self._generic_relation[key]["parent"] for key in list(self._generic_relation.keys())}
-        #         with_values = "__".join([vars[key] for key in list(self._generic_relation[key]["identifiers"])])
-        #         db_obj = get_fk(with_parent, diffsync, key, with_values)
-        #         vars[key] = str(db_obj.pk)
-        #     if key in list(self._foreign_key.keys()):
-        #         db_obj = get_fk(self._foreign_key, diffsync, key, val)
-        #         vars[key] = str(db_obj.pk)
-        #     if key in list(self._many_to_many.keys()):
-        #         db_obj = get_fk(self._many_to_many, diffsync, key, val)
-        #         vars[key] = str(db_obj.pk)
-        # obj = db_model.objects.get(**vars)
-        # obj.delete()
-
         obj = db_model.objects.get(pk=self.pk)
         obj.delete()
 
@@ -168,28 +163,10 @@ class NautobotDevice(Device):
         model = dcim_models.Device
 
 
-#     def get_device_tag_id(self):
-#         """Get the Nautobot id of the tag for this device.
-#         If the ID is already present locally return it
-#         If not try to retrieve it from Nautobot or create it in Nautobot if needed
-#         Returns:
-#             device_tag_id (str)
-#         """
-#         if self.device_tag_id:
-#             return self.device_tag_id
-
-#         tag = self.diffsync.nautobot.extras.tags.get(name=f"device={self.name}")
-
-#         if not tag:
-#             tag = self.diffsync.nautobot.extras.tags.create(name=f"device={self.name}", slug=f"device__{self.name}")
-
-#         self.device_tag_id = tag.id
-#         return self.device_tag_id
-
-
 class NautobotInterface(NautobotMixin, Interface):
     """Extension of the Interface model."""
 
+    _attributes = Interface._attributes + ("pk",)
     _unique_fields = ("pk",)
     pk: Optional[str]
     connected_endpoint_type: Optional[str]
@@ -203,6 +180,7 @@ class NautobotInterface(NautobotMixin, Interface):
 class NautobotIPAddress(NautobotMixin, IPAddress):
     """Extension of the IPAddress model."""
 
+    _attributes = IPAddress._attributes + ("pk",)
     _unique_fields = ("pk",)
     pk: Optional[str]
 
@@ -215,6 +193,7 @@ class NautobotIPAddress(NautobotMixin, IPAddress):
 class NautobotPrefix(NautobotMixin, Prefix):
     """Extension of the Prefix model."""
 
+    _attributes = Prefix._attributes + ("pk",)
     _unique_fields = ("pk",)
     pk: Optional[str]
 
@@ -227,6 +206,7 @@ class NautobotPrefix(NautobotMixin, Prefix):
 class NautobotVlan(NautobotMixin, Vlan):
     """Extension of the Vlan model."""
 
+    _attributes = Vlan._attributes + ("pk",)
     _unique_fields = ("pk",)
     pk: Optional[str]
     tag_prefix: str = "device="
@@ -240,6 +220,7 @@ class NautobotVlan(NautobotMixin, Vlan):
 class NautobotCable(Cable):
     """Extension of the Cable model."""
 
+    _attributes = ("pk",)
     _unique_fields = ("pk",)
     pk: Optional[str]
     termination_a_id: Optional[str]

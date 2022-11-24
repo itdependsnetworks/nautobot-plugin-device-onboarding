@@ -50,7 +50,7 @@ class NetworkImporterAdapter(BaseAdapter):
 
     def load(self):
         """Load all data from the network in the local cache."""
-        # Josh, I changed this, the way I understand the flor, the site and devices will
+        # Josh, I changed this, the way I understand the flow, the site and devices will
         # always come from Nautobot. We should use exactly the same code then. I changed the logic to
         # accomodate.
         # sites = {}
@@ -193,7 +193,9 @@ class NetworkImporterAdapter(BaseAdapter):
             site = self.get(self.site, identifier=device.site)
 
             for vlan in items[1].result["vlans"]:
-                new_vlan, created = self.get_or_add(self.vlan(vid=vlan["vid"], name=vlan["name"], site=site.slug))
+                new_vlan, created = self.get_or_add_model_instance(
+                    self.vlan(vid=vlan["vid"], name=vlan["name"], site=site.slug)
+                )
 
                 if created:
                     site.add_child(new_vlan)
@@ -237,7 +239,7 @@ class NetworkImporterAdapter(BaseAdapter):
                 )
                 nbr_cables += 1
                 LOGGER.debug("%s | Added cable %s", dev_name, cable.get_unique_id())
-                self.get_or_add(cable)
+                self.get_or_add_model_instance(cable)
 
         LOGGER.debug("Found %s cables from Cli", nbr_cables)
 
@@ -290,7 +292,7 @@ class NetworkImporterAdapter(BaseAdapter):
 
             try:
                 # TODO: Not actually used right now, update F841 when complete
-                intf = self.get(self.interface, identifier=dict(name=intf_name, device=dev_name))  # noqa: F841
+                self.get(self.interface, identifier=dict(name=intf_name, device=dev_name))  # noqa: F841
             except ObjectNotFound:
                 return True
 

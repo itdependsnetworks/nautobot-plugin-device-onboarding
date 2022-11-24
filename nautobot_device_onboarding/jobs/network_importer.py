@@ -7,10 +7,10 @@ from nautobot_ssot.jobs.base import DataSource
 
 from diffsync import DiffSyncFlags
 
-name = "SSoT - Network Importer"
+name = "SSoT - Network Importer"  # pylint: diable=invalid-name
 
 
-class NetworkDeviceDataSource(DataSource, Job):
+class NetworkDeviceDataSource(DataSource, Job):  # pylint: diable=invalid-name
     """Network device data source."""
 
     debug = BooleanVar(description="Enable for verbose debug logging.")

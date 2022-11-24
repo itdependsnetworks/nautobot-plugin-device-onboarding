@@ -8,7 +8,7 @@ from diffsync import DiffSyncModelFlags
 class AdapterSettings(BaseSettings):
     """Config settings for the netbox_api adapter. Not used currently."""
 
-    model_flag_tags: List[str] = list()  # List of tags that defines what objects to assign the model_flag to.
+    model_flag_tags: List[str] = []  # List of tags that defines what objects to assign the model_flag to.
     model_flag: Optional[DiffSyncModelFlags]  # The model flag that will be applied to objects based on tag.
 
 

@@ -25,19 +25,8 @@ class Command(BaseCommand):
 
     help = "Destroy all importable data, initlize base data, and sync from test dictionary."
 
-    def add_arguments(self, parser):
-        """Add arguments for dev_destroy_and_build."""
-        parser.add_argument("-u", "--user", type=str, required=True, help="Username to create.")
-        parser.add_argument("-p", "--password", type=str, required=True, help="Password to create.")
-        parser.add_argument("-e", "--email", type=str, required=False, help="Email to create.")
-
     def handle(self, *args, **kwargs):
         """Add handler for `dev_destroy_and_build`."""
-        user = kwargs["user"]
-        password = kwargs["password"]
-        email = kwargs["email"]
-        if not email:
-            email = "email@example.com"
         remove()
-        management.call_command("dev_init_data", f"---user={user}", f"--password={password}", f"--email={email}")
+        management.call_command("dev_init_data")
         management.call_command("run_ssot")

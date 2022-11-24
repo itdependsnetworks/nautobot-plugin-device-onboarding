@@ -17,8 +17,8 @@ class Site(DiffSyncModel):
     _generic_relation = {}
 
     slug: str
-    prefixes: List = list()
-    vlans: List[str] = list()
+    prefixes: List = []
+    vlans: List[str] = []
     pk: Optional[str]
 
 
@@ -36,15 +36,9 @@ class Device(DiffSyncModel):
 
     slug: str
     site: Optional[str]
-    interfaces: List = list()
+    interfaces: List = []
     primary_ip: Optional[str]
     pk: Optional[str]
-
-    # TODO: Not currently used
-    platform: Optional[str]
-    model: Optional[str]  # device_type
-    device_role: Optional[str]
-    vendor: Optional[str]  # a.platform.manufacturer
 
 
 class Interface(DiffSyncModel):  # pylint: disable=too-many-instance-attributes
@@ -56,24 +50,18 @@ class Interface(DiffSyncModel):  # pylint: disable=too-many-instance-attributes
     _modelname = "interface"
     _identifiers = ("device", "name")
     _shortname = ("name",)
-    # TODO: Why are we setting mtu, active, and speed if not actually considered?
     _attributes = (
         "description",
-        # "mtu",
-        # "is_virtual",
-        # "is_lag",
-        # "is_lag_member",
-        # "parent",
+        "mtu",
+        "lag",
         "mode",
-        # "switchport_mode",
         "tagged_vlans",
         "untagged_vlan",
-        # "ip_addresses",
         "status",
         "type",
     )
     _children = {"ip_address": "ip_addresses"}
-    _foreign_key = {"device": "device", "status": "status"}
+    _foreign_key = {"device": "device", "status": "status", "lag": "interface", "untagged_vlan": "vlan"}
     _many_to_many = {"tagged_vlans": "vlan"}
     _generic_relation = {}
 
@@ -82,22 +70,16 @@ class Interface(DiffSyncModel):  # pylint: disable=too-many-instance-attributes
     status: str
     type: str
 
+    ip_addresses: List[str] = []
+    tagged_vlans: List[str] = []
+
+    lag: Optional[str]
     description: Optional[str]
-    mtu: Optional[int]
-    mode: Optional[str]  # TRUNK, ACCESS, L3, NONE
-    # is_virtual: Optional[bool]
-    # is_lag: Optional[bool]
-    ip_addresses: List[str] = list()
-    tagged_vlans: List[str] = list()
+    mode: Optional[str]
     untagged_vlan: Optional[str]
+    mtu: Optional[int]
 
     parent: Optional[str]  # Not the same
-
-    speed: Optional[int]  # Not in Nautobot
-    switchport_mode: Optional[str] = "NONE"  # Not in Nautobot
-    is_lag_member: Optional[bool]  # Not in Nautobot
-    active: Optional[bool]  # Not in Nautobot
-    lag_members: List[str] = list()  # Not in Nautobot
 
 
 class IPAddress(DiffSyncModel):
@@ -135,7 +117,7 @@ class Prefix(DiffSyncModel):
     _generic_relation = {}
 
     prefix: str
-    site: Optional[str]  # site
+    site: Optional[str]
     vlan: Optional[str]
     status: str
 
@@ -158,7 +140,7 @@ class Vlan(DiffSyncModel):
     status: str
     name: Optional[str]
 
-    associations: List[str] = list()
+    associations: List[str] = []
 
     def add_device(self, device):
         """Add a device to the list of associated devices.

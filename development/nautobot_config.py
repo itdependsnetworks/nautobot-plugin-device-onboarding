@@ -138,7 +138,7 @@ PLUGINS = ["nautobot_device_onboarding"]
 # Each key in the dictionary is the name of an installed plugin and its value is a dictionary of settings.
 # PLUGINS_CONFIG = {
 #     'nautobot_device_onboarding': {
-#         'foo': 'bar',
-#         'buzz': 'bazz'
+#         'diffsync_flags': ['CONTINUE_ON_FAILURE', "SKIP_UNMATCHED_DST"],
+#         'model_flags': {"interface":["SKIP_CHILDREN_ON_DELETE"]},
 #     }
 # }

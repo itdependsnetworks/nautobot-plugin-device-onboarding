@@ -32,7 +32,7 @@ class NetworkImporterHost(Host):
     not_reachable_reason: Optional[str]
 
 
-class NetworkImporterInventory:
+class NetworkImporterInventory:  # pylint: disable=too-few-public-methods
     """Base inventory class for the Network Importer."""
 
     def __init__(
@@ -76,7 +76,7 @@ class NetworkImporterInventory:
             self.global_group.password = self.password
             if self.enable:
                 if not self.global_group.connection_options["netmiko"].extras:
-                    self.global_group.connection_options["netmiko"].extras = dict()
+                    self.global_group.connection_options["netmiko"].extras = {}
                 elif "secret" not in self.global_group.connection_options["netmiko"].extras:
                     self.global_group.connection_options["netmiko"].extras["secret"] = self.password
 

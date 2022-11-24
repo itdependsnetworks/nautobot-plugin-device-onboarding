@@ -1,14 +1,15 @@
 """NautobotORMAdapter class."""
 import logging
-import warnings
+from diffsync.enum import DiffSyncFlags, DiffSyncModelFlags
+
 
 from django.conf import settings
 from graphene_django.settings import graphene_settings
 from graphql import get_default_backend
 from nornir.core.plugins.inventory import InventoryPluginRegister
-from diffsync.exceptions import ObjectAlreadyExists
 
 from nautobot_plugin_nornir.plugins.inventory.nautobot_orm import NautobotORMInventory
+from nautobot.dcim.choices import InterfaceTypeChoices, InterfaceModeChoices
 
 from nautobot_device_onboarding.network_importer.adapters.nautobot.models import (  # pylint: disable=import-error
     NautobotSite,
@@ -23,18 +24,21 @@ from nautobot_device_onboarding.network_importer.adapters.nautobot.models import
 
 from nautobot_device_onboarding.network_importer.adapters.base import BaseAdapter  # pylint: disable=import-error
 
-warnings.filterwarnings("ignore", category=DeprecationWarning)
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 InventoryPluginRegister.register("nautobot-inventory", NautobotORMInventory)
 
 PLUGIN_SETTINGS = settings.PLUGINS_CONFIG.get("nautobot_device_onboarding", {})
 LOGGER = logging.getLogger("network-importer")
 
+IMPORT_VLANS = PLUGIN_SETTINGS["import_vlans"]
+if not isinstance(IMPORT_VLANS, bool):
+    raise ValueError(
+        f"The value of `import_vlans` must be a bool, received: {IMPORT_VLANS} of type {type(IMPORT_VLANS)}"
+    )
+
 backend = get_default_backend()
 schema = graphene_settings.SCHEMA
+
 SITE_QUERY = """query ($site_id: ID!) {
   site(id: $site_id) {
     name
@@ -59,7 +63,6 @@ SITE_QUERY = """query ($site_id: ID!) {
       }
       tags {
         name
-        id
       }
     }
     prefixes {
@@ -72,7 +75,6 @@ SITE_QUERY = """query ($site_id: ID!) {
       }
       tags {
         name
-        id
       }
     }
   }
@@ -92,6 +94,9 @@ DEVICE_QUERY = """query ($device_id: ID!) {
       mtu
       mode
       type
+      tags {
+        name
+      }
       status {
         slug
         id
@@ -102,6 +107,9 @@ DEVICE_QUERY = """query ($device_id: ID!) {
       ip_addresses {
         id
         address
+        tags {
+          name
+        }
         status {
           slug
           id
@@ -109,6 +117,9 @@ DEVICE_QUERY = """query ($device_id: ID!) {
       }
       cable {
         termination_a_type
+        tags {
+          name
+        }
         status {
           name
         }
@@ -118,6 +129,10 @@ DEVICE_QUERY = """query ($device_id: ID!) {
         id
         enabled
         name
+        status {
+          slug
+        }
+        type
         member_interfaces {
           name
           enabled
@@ -145,6 +160,62 @@ CABLE_QUERY = """query ($site_id: String) {
   }
 }"""
 
+INTERFACE_ENUM_QUERY = """{
+  __schema {
+    types{
+      name
+      kind
+      enumValues {
+        name
+        description
+      }
+    }
+  }
+}
+"""
+
+
+def get_schema_data(request):
+    """Function run GraphQL Query to get schema mapping information."""
+    document = backend.document_from_string(schema, INTERFACE_ENUM_QUERY)
+    gql_result = document.execute(context_value=request)
+    return gql_result.data
+
+
+# TODO: See if there is a better way to get this data. GraphQl query is inefficient and relies
+# on the first query to populate the data.
+def populate_interface_types(data):
+    """Function to convert what GraphQL shows vs what data is stored for interface types."""
+    interface_types = list(filter(lambda x: x["name"] == "DcimInterfaceTypeChoices", data["__schema"]["types"]))[0][
+        "enumValues"
+    ]
+    return {item["name"]: item["description"] for item in interface_types}
+
+
+def get_interface_type_value(val, interface_types):
+    """Function to create dictionary of Interface Types."""
+    for _, value in InterfaceTypeChoices.CHOICES:
+        for item in value:
+            if interface_types[val] == item[1]:
+                return item[0]
+    raise ValueError(f"Value: {val} not found")
+
+
+def populate_interface_modes(data):
+    """Function to convert what GraphQL shows vs what data is stored for interface modes."""
+    interface_types = list(filter(lambda x: x["name"] == "DcimInterfaceModeChoices", data["__schema"]["types"]))[0][
+        "enumValues"
+    ]
+    return {item["name"]: item["description"] for item in interface_types}
+
+
+def get_interface_mode_value(val, interface_modes):
+    """Function to create dictionary of Interface Modes."""
+    for item in InterfaceModeChoices.CHOICES:
+        if interface_modes[val] == item[1]:
+            return item[0]
+    raise ValueError(f"Value: {val} not found")
+
 
 class NautobotOrmAdapter(BaseAdapter):
     """Adapter to import Data from a Nautobot Server from the ORM."""
@@ -158,9 +229,16 @@ class NautobotOrmAdapter(BaseAdapter):
     prefix = NautobotPrefix
     status = NautobotStatus
 
+    schema_data = None
+    interface_types = None
+    interface_modes = None
+
     top_level = ["status", "site", "device", "cable"]
 
-    # settings_class = AdapterSettings
+    global_flags = DiffSyncFlags.NONE
+
+    diffsync_flags = PLUGIN_SETTINGS.get("diffsync_flags")
+    diffsync_model_flags = PLUGIN_SETTINGS.get("model_flags")
 
     type = "Nautobot"
 
@@ -172,42 +250,32 @@ class NautobotOrmAdapter(BaseAdapter):
         """
         super().__init__(*args, **kwargs)
         self.request = request
+        self.apply_diffsync_flags()
 
-    # TODO: figure out what tags were doing
-    # def _is_tag_present(self, nautobot_obj):
-    #     """Find if tag is present for a given object."""
-    #     if isinstance(nautobot_obj, dict) and not nautobot_obj.get("tags", None):  # pylint: disable=no-else-return
-    #         return False
-    #     elif not isinstance(nautobot_obj, dict):  # pylint: disable=no-else-return
-    #         try:
-    #             nautobot_obj["tags"]
-    #         except AttributeError:
-    #             return False
-    #     elif not nautobot_obj["tags"]:
-    #         return False
+    def apply_model_flags(self, obj, tags):
+        """Helper function for DiffSync Flag assignment."""
+        if not self.diffsync_model_flags:
+            return
+        for item in tags:
+            if not hasattr(DiffSyncModelFlags, item):
+                continue
+            obj.model_flags |= getattr(DiffSyncModelFlags, item)
+        if not self.diffsync_model_flags.get(obj._modelname):
+            return
+        for item in self.diffsync_model_flags[obj._modelname]:
+            if not hasattr(DiffSyncModelFlags, item):
+                raise ValueError(f"There was an attempt to add a non-existing flag of `{item}`")
+            obj.model_flags |= getattr(DiffSyncModelFlags, item)
+        print(obj.model_flags)
 
-    #     for tag in self.settings.model_flag_tags:
-    #         if tag in nautobot_obj["tags"]:
-    #             LOGGER.debug(
-    #                 "Tag (%s) found for object %s. Marked for diffsync flag assignment.",
-    #                 tag,
-    #                 nautobot_obj,
-    #             )
-    #             return True
-    #     return False
-
-    # def apply_model_flag(self, diffsync_obj, nautobot_obj):
-    #     """Helper function for DiffSync Flag assignment."""
-    #     model_flag = self.settings.model_flag
-
-    #     if model_flag and self._is_tag_present(nautobot_obj):
-    #         LOGGER.info(
-    #             "DiffSync model flag (%s) applied to object %s",
-    #             model_flag,
-    #             nautobot_obj,
-    #         )
-    #         diffsync_obj.model_flags = model_flag
-    #     return diffsync_obj
+    def apply_diffsync_flags(self):
+        """Helper function for DiffSync Flag assignment."""
+        if not self.diffsync_flags:
+            return
+        for item in self.diffsync_flags:
+            if not hasattr(DiffSyncFlags, item):
+                raise ValueError(f"There was an attempt to add a non-existing flag of `{item}`")
+            self.global_flags |= getattr(DiffSyncFlags, item)
 
     @property
     def meta(self):
@@ -225,6 +293,11 @@ class NautobotOrmAdapter(BaseAdapter):
     def load(self):
         """Initialize and load all data from nautobot in the local cache."""
         self.load_inventory()
+        # print(dir(self.interface))
+        if not self.schema_data:
+            self.schema_data = get_schema_data(self.request)
+            self.interface_types = populate_interface_types(self.schema_data)
+            self.interface_modes = populate_interface_modes(self.schema_data)
 
         # Load Prefix and Vlan per site
         for site in self.get_all(self.site):
@@ -290,11 +363,9 @@ class NautobotOrmAdapter(BaseAdapter):
                 pk=nb_prefix["id"],
                 status="active",
             )
-            # prefix = self.apply_model_flag(prefix, nb_prefix)
-
             # if nb_prefix.vlan:
             #     prefix.vlan = self.vlan.create_unique_id(vid=nb_prefix.vlan.vid, site=site.slug)
-
+            self.apply_model_flags(prefix, [val["name"] for val in nb_prefix["tags"]])
             self.add(prefix)
             site.add_child(prefix)
 
@@ -305,7 +376,7 @@ class NautobotOrmAdapter(BaseAdapter):
             site (NautobotSite): Site to import vlan for
             data (dict): Scoped GraphQL returned dictionary
         """
-        if PLUGIN_SETTINGS.get("import_vlans") is not True:
+        if IMPORT_VLANS is not True:
             return
 
         vlans = data["site"]["vlans"]
@@ -318,6 +389,8 @@ class NautobotOrmAdapter(BaseAdapter):
                 pk=nb_vlan["id"],
                 status="active",
             )
+            # print(vlan)
+            self.apply_model_flags(vlan, [val["name"] for val in nb_vlan["tags"]])
             self.add(vlan)
             site.add_child(vlan)
 
@@ -337,7 +410,6 @@ class NautobotOrmAdapter(BaseAdapter):
         # lag_members: List[str] = list()
         # tagged_vlans: List[str] = list()
         # untagged_vlan: Optional[str]
-
         interface = self.interface(
             name=data["name"],
             device=device.slug,
@@ -346,79 +418,28 @@ class NautobotOrmAdapter(BaseAdapter):
             mtu=data["mtu"],
             tagged_vlans=[],
             status="active",
-            type="10gbase-t",
+            type=get_interface_type_value(data["type"], self.interface_types),
         )
-
-        # TODO: Not actually used right now, remove noqa on F841 when used again
-        import_vlans = True
-        if PLUGIN_SETTINGS.get("import_vlans") is not True:
-            import_vlans = False  # noqa: F841
-
-        # Define status if it's enabled in the config file
-        if PLUGIN_SETTINGS.get("import_intf_status") is True:
-            if data["status"]["slug"] == "active":
-                interface.active = True
-            else:
-                interface.active = False
-
-        # TODO: Figure out what this is doing. is_virtual, is_lag are properties, not attributes so don't think it matters
-        # Identify if the interface is physical or virtual and if it's part of a Lag
-        if data["type"] == "lag":
-            # interface.is_lag = True
-            # interface.is_virtual = False
-            pass
-        elif data["type"] == "virtual":
-            # interface.is_lag = False
-            # interface.is_virtual = True
-            pass
-        else:
-            # interface.is_lag = False
-            # interface.is_virtual = False
-            pass
+        if data["mode"]:
+            interface.mode = get_interface_mode_value(data["mode"], self.interface_modes)
 
         if data["lag"]:
-            interface.is_lag_member = True
-            pass
-            # interface.is_lag = False
-            # interface.is_virtual = False
-            parent_interface_uid = self.interface(name=data["lag"], device=device.slug).get_unique_id()
-            interface.parent = parent_interface_uid
+            # This presumes that the interface will be created (if not already), which seems like a reasonable assumption
+            interface.lag = f"{device.slug}__{data['lag']['name']}"
 
-        # identify Interface Mode
-        if data["mode"] == "ACCESS":
-            interface.switchport_mode = "access"
-            interface.mode = interface.switchport_mode
-        elif data["mode"] == "TAGGED":
-            interface.switchport_mode = "tagged"
-            interface.mode = interface.switchport_mode
-        # This logic seems off to me? Why would the mode be L3_SUB?
-        elif not data["mode"] and data["tagged_vlans"]:
-            interface.switchport_mode = "NONE"
-            interface.mode = "access"
-        else:
-            interface.switchport_mode = "NONE"
-            interface.mode = "NONE"
+        if data["tagged_vlans"] and IMPORT_VLANS:
+            for vlan in data["tagged_vlans"]:
+                interface.tagged_vlans.append(f"{site}__{vlan['vid']}")
 
-        # TODO: Update and verify this logic
-        # if site and data.get('tagged_vlans') and import_vlans:
-        #     for vid in [v["vid"] for v in data['tagged_vlans']]:
-        #         try:
-        #             vlan = self.get(self.vlan, identifier=dict(vid=vid, site=site.slug))
-        #             interface.tagged_vlans.append(vlan.get_unique_id())
-        #         except ObjectNotFound:
-        #             LOGGER.debug("%s | VLAN %s is not present for site %s", self.name, vid, site.slug)
-
-        # if site and data["untagged_vlan"] and import_vlans:
-        #     try:
-        #         vlan = self.get(self.vlan, identifier=dict(vid=data["untagged_vlan"]["vid"], site=site.slug))
-        #         interface.untagged_vlan = vlan.get_unique_id()
-        #     except ObjectNotFound:
-        #         LOGGER.debug("%s | VLAN %s is not present for site %s", self.name, data["untagged_vlan"]["vid"], site.slug)
+        if data["untagged_vlan"] and data["untagged_vlan"].get("vid") and IMPORT_VLANS:
+            # This presumes that the vlan will be created (if not already), which seems like a reasonable assumption
+            interface.untagged_vlan = f"{site}__{data['untagged_vlan']['vid']}"
 
         if data["connected_endpoint"]:
             interface.connected_endpoint_type = data["connected_endpoint"]["__typename"]
 
-        new_intf, created = self.get_or_add(interface)
+        new_intf, created = self.get_or_add_model_instance(interface)
+        self.apply_model_flags(new_intf, [val["name"] for val in data["tags"]])
         if created:
             device.add_child(new_intf)
 
@@ -432,11 +453,9 @@ class NautobotOrmAdapter(BaseAdapter):
                 status="active",
             )
 
-            # TODO: There was a duplicate check (ObjectAlreadyExists), does not seem to be a valid use case and we should
-            # fail fast. Potentially incorrect thought process
+            self.apply_model_flags(ip_address, [val["name"] for val in ip_addr["tags"]])
             self.add(ip_address)
             new_intf.add_child(ip_address)
-        # self._interface_dict[new_intf.pk] = new_intf
 
         return new_intf
 
@@ -476,7 +495,7 @@ class NautobotOrmAdapter(BaseAdapter):
                 )
                 continue
 
-            # TODO: Review the below
+            # TODO: Legacy comment, Review the below
             # Disabling this check for now until we are able to allow user to control how cabling should be imported
             # if term_a_device not in devices:
             #     LOGGER.debug(
@@ -504,12 +523,13 @@ class NautobotOrmAdapter(BaseAdapter):
                 pk=nb_cable["id"],
                 status="connected",
             )
-
-            try:
-                self.add(cable)
-            except ObjectAlreadyExists:
-                pass
-
+            # TODO: confirm can remove
+            # try:
+            #     self.add(cable)
+            # except ObjectAlreadyExists:
+            #     pass
+            obj, _ = self.get_or_add_model_instance(cable)
+            self.apply_model_flags(obj, [val["name"] for val in nb_cable["tags"]])
             nbr_cables += 1
 
         LOGGER.debug("%s | Found %s cables in nautobot for %s", self.name, nbr_cables, site.slug)
